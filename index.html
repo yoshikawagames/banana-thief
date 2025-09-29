@@ -15,9 +15,9 @@
         canvas {
             border: 2px solid #333;
 
-            /* --- 背景画像の設定 (ここにGitHubのRaw URLを貼り付けてください) --- */
-            /* ⚠️ 画像直リンクを反映しました！ */
-            background-image: url('https://raw.githubusercontent.com/yoshikawagames/banana-thief/main/%E3%83%90%E3%83%8A%E3%83%8A%E6%B3%A5%E6%A3%92%E8%83%8C%E6%99%AF%EF%BC%91.png'); 
+            /* --- 背景画像の設定 (新しいイラストに差し替えました) --- */
+            /* ⚠️ 画像直リンクの前に黒の半透明フィルター(rgba(0, 0, 0, 0.4))を追加しています */
+            background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('https://raw.githubusercontent.com/yoshikawagames/banana-thief/main/%E3%83%90%E3%83%8A%E3%83%8A%E6%B3%A5%E6%A3%92%E8%83%8C%E6%99%AF%EF%BC%92.png'); 
             
             background-size: cover; /* キャンバスに合わせて画像を拡大・縮小 */
             background-position: center; /* 画像を中央に配置 */
@@ -260,9 +260,6 @@
                 canvas.width = window.innerWidth > 768 ? 800 : window.innerWidth * 0.9;
                 canvas.height = canvas.width * 0.8;
                 rhythmHitZoneY = canvas.height - 150; // ヒットゾーンのY座標を再計算
-                
-                // 修正：ジョイスティックの動的な位置計算コードを削除しました。
-                // CSSの `position: absolute; bottom: 20px; right: 20px;` で正しく配置されます。
             }
             window.addEventListener('resize', resizeCanvas);
             resizeCanvas();
@@ -343,6 +340,11 @@
                 const x = player.x - player.size / 2;
                 const y = player.y - player.size / 2;
                 
+                // 輪郭 (白い線でプレイヤー全体を囲む)
+                ctx.strokeStyle = '#FFFFFF'; 
+                ctx.lineWidth = 2; 
+                ctx.strokeRect(x - 1, y - 1, player.size + 2, player.size + 2);
+
                 // 頭 (帽子と顔)
                 ctx.fillStyle = '#000000'; // 帽子
                 ctx.fillRect(x, y, s * 4, s * 2);
@@ -363,6 +365,11 @@
                     const s = guard.size / 4;
                     const x = guard.x - guard.size / 2;
                     const y = guard.y - guard.size / 2;
+                    
+                    // 輪郭 (白い線で警備員全体を囲む)
+                    ctx.strokeStyle = '#FFFFFF'; 
+                    ctx.lineWidth = 2; 
+                    ctx.strokeRect(x - 1, y - 1, guard.size + 2, guard.size + 2);
 
                     // 帽子
                     ctx.fillStyle = '#0000FF'; // 青い帽子
@@ -384,6 +391,11 @@
                     const s = visitor.size / 4;
                     const x = visitor.x - visitor.size / 2;
                     const y = visitor.y - visitor.size / 2;
+                    
+                    // 輪郭 (白い線で訪問者全体を囲む)
+                    ctx.strokeStyle = '#FFFFFF'; 
+                    ctx.lineWidth = 2; 
+                    ctx.strokeRect(x - 1, y - 1, visitor.size + 2, visitor.size + 2);
                     
                     // 体
                     ctx.fillStyle = visitor.color;
@@ -417,12 +429,18 @@
             // 弾（視線）を描画
             function drawBullets() {
                 bullets.forEach(bullet => {
-                    ctx.fillStyle = '#EF4444';
+                    // 輪郭の設定
+                    ctx.strokeStyle = '#000000'; // 黒い輪郭
+                    ctx.lineWidth = 2; // 輪郭の太さ
+
+                    ctx.fillStyle = '#EF4444'; // 赤いビーム
                     ctx.beginPath();
                     ctx.moveTo(bullet.x, bullet.y);
                     ctx.lineTo(bullet.x + bullet.width, bullet.y + bullet.height / 2);
                     ctx.lineTo(bullet.x, bullet.y + bullet.height);
+                    ctx.closePath(); // パスを閉じる
                     ctx.fill();
+                    ctx.stroke(); // 塗りの後に輪郭を描画
                 });
             }
             
