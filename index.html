@@ -260,11 +260,9 @@
                 canvas.width = window.innerWidth > 768 ? 800 : window.innerWidth * 0.9;
                 canvas.height = canvas.width * 0.8;
                 rhythmHitZoneY = canvas.height - 150; // ヒットゾーンのY座標を再計算
-                // ジョイスティックの位置を更新
-                const rect = joystick.getBoundingClientRect();
-                const containerRect = canvas.parentElement.getBoundingClientRect();
-                joystick.style.right = `${window.innerWidth - containerRect.right + 20}px`;
-                joystick.style.bottom = `${window.innerHeight - containerRect.bottom + 20}px`;
+                
+                // 修正：ジョイスティックの動的な位置計算コードを削除しました。
+                // CSSの `position: absolute; bottom: 20px; right: 20px;` で正しく配置されます。
             }
             window.addEventListener('resize', resizeCanvas);
             resizeCanvas();
