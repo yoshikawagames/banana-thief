@@ -220,8 +220,8 @@
 
             // BGM関連の変数
             let gameBGM;
-            // 💡 ユーザー提供のGitHub Raw URLに更新
             const BGM_URL = 'https://raw.githubusercontent.com/yoshikawagames/banana-thief/main/%E6%8E%A5%E7%9D%80%E5%89%A4%E3%81%A8%E7%86%B1%E5%B8%AF%E3%81%AE%E5%BE%8C.mp3'; 
+            let bgmReady = false; // 💡 BGMの準備状態を追跡するフラグ
             
             // ジョイスティック関連
             let joystickActive = false;
@@ -858,10 +858,21 @@
                     updateUI();
                 } else {
                     // BGM再生開始 (ブラウザの自動再生ポリシーのため、ユーザー操作で開始)
-                    gameBGM.currentTime = 0; // 曲の最初に戻してから再生
-                    gameBGM.play().catch(error => {
-                        console.error("BGMの再生に失敗しました (ユーザー操作が必要):", error);
-                    }); 
+                    if (bgmReady) {
+                        gameBGM.currentTime = 0; // 曲の最初に戻してから再生
+                        gameBGM.play().catch(error => {
+                            // ブラウザポリシーによる再生失敗をキャッチ
+                            console.error("BGM再生失敗 (ブラウザのポリシー):", error);
+                        });
+                    } else {
+                         // 💡 まだロードが完了していない場合のフォールバック
+                         console.warn("BGMがまだロードされていません。ロード完了を待ってから再生を試みます。");
+                         gameBGM.addEventListener('canplaythrough', function attemptPlayOnce() {
+                            gameBGM.removeEventListener('canplaythrough', attemptPlayOnce);
+                            gameBGM.currentTime = 0;
+                            gameBGM.play().catch(e => console.error("ロード後の再生試行に失敗:", e));
+                         });
+                    }
                     
                     gameState = 'playing';
                     initGame();
@@ -873,15 +884,19 @@
                 gameState = 'rhythmGame';
                 initRhythmGame();
                 // リズムゲーム開始時もBGMを再生（一時停止していた場合のため）
-                gameBGM.play().catch(error => console.error("BGM再開に失敗:", error));
+                if (bgmReady) {
+                    gameBGM.play().catch(error => console.error("BGM再開に失敗:", error));
+                }
                 gameLoop();
             });
             
             retryButton.addEventListener('click', () => {
                 gameState = 'playing';
                 initGame();
-                gameBGM.currentTime = 0; // BGMを最初に戻す
-                gameBGM.play().catch(error => console.error("BGM再開に失敗:", error));
+                if (bgmReady) {
+                    gameBGM.currentTime = 0; // BGMを最初に戻す
+                    gameBGM.play().catch(error => console.error("BGM再開に失敗:", error));
+                }
                 gameLoop();
             });
             
@@ -900,7 +915,15 @@
             gameBGM = new Audio(BGM_URL);
             gameBGM.loop = true; // ループを有効にする
             gameBGM.volume = 0.2; // 音量を少し下げる (任意)
+            
+            // 💡 ロードを開始する（これがないと再生時に初めてロードが始まることがある）
+            gameBGM.load(); 
 
+            // 💡 再生準備が整ったことを確認するイベントリスナー
+            gameBGM.addEventListener('canplaythrough', () => {
+                bgmReady = true;
+                console.log("BGM: ロード完了。再生準備OK。");
+            });
 
             // 初期描画
             initGame();
