@@ -66,7 +66,9 @@
             right: 20px;
             width: 100px;
             height: 100px;
-            background-color: rgba(0, 0, 0, 0.2);
+            /* ジョイスティックは白 */
+            background-color: rgba(255, 255, 255, 0.3); 
+            border: 2px solid rgba(0, 0, 0, 0.5); /* 黒い縁を追加 */
             border-radius: 50%;
             display: flex;
             justify-content: center;
@@ -77,7 +79,8 @@
         #joystick-handle {
             width: 50px;
             height: 50px;
-            background-color: rgba(0, 0, 0, 0.5);
+            /* ハンドルも白 */
+            background-color: rgba(255, 255, 255, 0.7); 
             border-radius: 50%;
         }
         #rhythm-game-container {
@@ -214,6 +217,11 @@
             // グローバルなゲーム設定
             let gameState = 'title'; // 'title', 'playing', 'rhythmIntro', 'rhythmGame', 'gameOver', 'win'
             let player = { x: 0, y: 0, size: 20, speed: 5 };
+
+            // BGM関連の変数
+            let gameBGM;
+            // 💡 ユーザー提供のGitHub Raw URLに更新
+            const BGM_URL = 'https://raw.githubusercontent.com/yoshikawagames/banana-thief/main/%E6%8E%A5%E7%9D%80%E5%89%A4%E3%81%A8%E7%86%B1%E5%B8%AF%E3%81%AE%E5%BE%8C.mp3'; 
             
             // ジョイスティック関連
             let joystickActive = false;
@@ -751,6 +759,9 @@
                 
                 switch(gameState) {
                     case 'title':
+                        // タイトル画面ではBGMを停止
+                        gameBGM.pause();
+                        gameBGM.currentTime = 0;
                         gameIntro.classList.remove('hidden');
                         break;
                     case 'playing':
@@ -760,12 +771,15 @@
                         gameMessage.textContent = '';
                         break;
                     case 'rhythmIntro':
+                        // リズムゲームの説明中はBGMを一時停止
+                        gameBGM.pause();
                         gameIntro.classList.add('hidden');
                         rhythmIntroContainer.classList.remove('hidden');
                         joystick.classList.add('hidden');
                         cancelAnimationFrame(animationFrameId);
                         break;
                     case 'rhythmGame':
+                        // リズムゲーム中はBGMを再生継続（ここでは一時停止処理なし）
                         gameIntro.classList.add('hidden');
                         gameUI.classList.remove('hidden');
                         eatBananaContainer.classList.remove('hidden');
@@ -774,6 +788,10 @@
                         joystick.classList.add('hidden');
                         break;
                     case 'gameOver':
+                    case 'win':
+                        // ゲーム終了時はBGMを停止
+                        gameBGM.pause();
+                        gameBGM.currentTime = 0;
                         if (rhythmScore >= 5) {
                             gameMessage.textContent = '逮捕されたけどバナナの実は食べた！';
                         } else if (rhythmScore > 0) {
@@ -781,12 +799,6 @@
                         } else {
                             gameMessage.textContent = '逮捕された！ゲームオーバー';
                         }
-                        gameUI.classList.remove('hidden');
-                        retryButton.classList.remove('hidden');
-                        cancelAnimationFrame(animationFrameId);
-                        break;
-                    case 'win':
-                        gameMessage.textContent = 'バナナ完食！皮まで全て食べた！';
                         gameUI.classList.remove('hidden');
                         retryButton.classList.remove('hidden');
                         cancelAnimationFrame(animationFrameId);
@@ -845,6 +857,12 @@
                     gameState = 'rhythmIntro';
                     updateUI();
                 } else {
+                    // BGM再生開始 (ブラウザの自動再生ポリシーのため、ユーザー操作で開始)
+                    gameBGM.currentTime = 0; // 曲の最初に戻してから再生
+                    gameBGM.play().catch(error => {
+                        console.error("BGMの再生に失敗しました (ユーザー操作が必要):", error);
+                    }); 
+                    
                     gameState = 'playing';
                     initGame();
                     gameLoop();
@@ -853,13 +871,17 @@
 
             rhythmStartButton.addEventListener('click', () => {
                 gameState = 'rhythmGame';
-                initRhythmGame(); // 新しいリズムゲーム初期化関数を呼び出し
+                initRhythmGame();
+                // リズムゲーム開始時もBGMを再生（一時停止していた場合のため）
+                gameBGM.play().catch(error => console.error("BGM再開に失敗:", error));
                 gameLoop();
             });
             
             retryButton.addEventListener('click', () => {
                 gameState = 'playing';
                 initGame();
+                gameBGM.currentTime = 0; // BGMを最初に戻す
+                gameBGM.play().catch(error => console.error("BGM再開に失敗:", error));
                 gameLoop();
             });
             
@@ -872,6 +894,12 @@
             laneButtonRight.addEventListener('click', () => {
                 if (gameState === 'rhythmGame') handleRhythmTap('right');
             });
+
+
+            // BGMの初期設定
+            gameBGM = new Audio(BGM_URL);
+            gameBGM.loop = true; // ループを有効にする
+            gameBGM.volume = 0.2; // 音量を少し下げる (任意)
 
 
             // 初期描画
