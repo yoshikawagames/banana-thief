@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>バナナを盗んで食え（ジョイコン座標補正版）</title>
+    <title>バナナを盗んで食え（iPad対応ジョイコン境界線）</title>
     <!-- Tailwind CSSを読み込み -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -81,28 +81,29 @@
             background-color: rgba(0, 0, 0, 0.6); 
             border-radius: 0.75rem;
         }
-        /* ジョイスティックコンテナ (モバイル/タブレット専用) - 表示を確実にするためbottom位置を修正 */
+        
+        /* --- 修正ポイント: ジョイスティックコンテナの表示設定 (iPad対応) --- */
         #joystick-container {
-            /* 画面ビューポートの右下隅に固定 */
             position: fixed; 
             bottom: 20px; 
             right: 20px; 
-            width: 170px; /* タッチ領域を拡大 */
-            height: 170px; /* タッチ領域を拡大 */
-            /* *** 修正点: 視覚的なフィードバックのために境界線を追加 *** */
+            width: 170px; 
+            height: 170px; 
+            
+            /* 常に表示 (iPad/PC問わず) */
+            display: block; 
+            
+            /* 赤い枠線 (デバッグ用) - 常に濃く表示 */
             border: 2px dashed #EF4444; 
             border-radius: 50%;
-            /* PCでは非表示 (デフォルト) */
-            display: none; 
             z-index: 10;
+            
+            /* PC/iPadの幅に関わらず、操作を受け付ける */
+            pointer-events: auto; 
         }
-        /* 画面幅1024px以下でジョイスティックを表示 (iPad/タブレット対応) */
-        @media (max-width: 1024px) { 
-            #joystick-container {
-                /* モバイル/タブレットでは表示 */
-                display: block; 
-            }
-        }
+
+        /* 画面幅によるスタイル変更を削除し、iPadでも枠線が薄くならないようにしました */
+        /* --- 修正ポイント終了 --- */
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4 bg-gray-100">
@@ -372,14 +373,15 @@
 
             // --- ジョイスティック描画 ---
             function drawJoystick() {
-                // CSSで非表示設定の場合は描画しない
-                if (getComputedStyle(joystickContainer).display === 'none') {
+                // PC環境でも表示されるようにCSSを修正しましたが、
+                // ジョイスティックの「ノブ」自体はモバイル環境でのみ描画します。
+                const isMobile = window.innerWidth <= 1024; // (一般的なモバイル判定)
+
+                // ゲームがプレイ中でない、かつモバイルではない場合は描画をスキップ
+                // iPadで幅が1024pxを超えていても、タッチ操作を意図する場合は active が true になります
+                if (gameState !== 'playing' || (!isMobile && !joystick.active)) {
                     joystick.active = false;
-                    return;
-                }
-                
-                if (gameState !== 'playing') {
-                    return;
+                    return; 
                 }
 
                 const containerRect = joystickContainer.getBoundingClientRect();
@@ -392,7 +394,6 @@
                 const scaleFactor = scaleFactorX; 
 
                 // 描画基準位置の計算 (Canvas内部描画座標)
-                // HTML要素の中心位置(画面CSSピクセル)を、Canvas内部描画座標に変換
                 const baseCenterX_CSS = (containerRect.left + containerRect.width / 2) - canvasRect.left; 
                 const baseCenterY_CSS = (containerRect.top + containerRect.height / 2) - canvasRect.top;
 
@@ -798,11 +799,10 @@
                     drawVisitors();
                     drawBanana();
                     drawBullets();
-                    // drawJoystickはgameStateに関わらず呼び出すように修正
+                    // drawJoystickはモバイル環境でのみ実行
                 }
                 
                 // ジョイスティックは、ゲームが'playing'中に限り描画されます。
-                // 描画が消えても操作エリアのHTML要素（赤い点線枠）は残る想定です。
                 drawJoystick(); 
 
                 if (gameFlashTimer > 0) {
@@ -910,8 +910,7 @@
 
             // --- ジョイスティックイベントリスナー (タッチ座標は画面全体座標系) ---
             joystickContainer.addEventListener('touchstart', (e) => {
-                if (getComputedStyle(joystickContainer).display === 'none') return;
-
+                // PC環境でのタッチイベントを無視するチェックを削除 (iPadで必須)
                 if (gameState !== 'playing') return;
                 e.preventDefault();
                 const touch = e.touches[0];
@@ -920,10 +919,9 @@
 
                 joystick.active = true;
 
-                // 入力座標に補正値を適用し、タッチと中心を一致させる
-                // X座標補正: 右への偏りを修正するため-20px
+                // X座標補正: -20px
                 joystick.joystickCenterScreenX = containerRect.left + containerRect.width / 2 + JOYSTICK_INPUT_CORRECTION_X;
-                // Y座標補正: CSS変更に伴い、補正値を20pxに減らす
+                // Y座標補正: 20px
                 joystick.joystickCenterScreenY = containerRect.top + containerRect.height / 2 + JOYSTICK_INPUT_CORRECTION_Y;
 
                 // 初回のタッチ位置が中心からどれだけ離れているかに応じてdeltaX/Yを設定
@@ -946,6 +944,7 @@
             }, { passive: false });
 
             joystickContainer.addEventListener('touchmove', (e) => {
+                // PC環境でのタッチイベントを無視するチェックを削除 (iPadで必須)
                 if (!joystick.active || gameState !== 'playing') return;
                 e.preventDefault();
                 const touch = e.touches[0];
