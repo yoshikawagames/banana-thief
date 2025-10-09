@@ -197,9 +197,8 @@
             // ジョイスティック変数
             let joystick = {
                 active: false,
-                startX: 0, // 画面座標 (タッチ開始点)
-                startY: 0,
-                // ★修正点1: 描画と移動に使用する画面座標の変位
+                joystickCenterScreenX: 0, // 修正: コンテナの中心座標 (画面全体座標系)
+                joystickCenterScreenY: 0, // 修正: コンテナの中心座標 (画面全体座標系)
                 deltaX: 0, 
                 deltaY: 0,
                 radius: 60, 
@@ -283,7 +282,7 @@
 
                 // 2. ジョイスティック入力 (モバイル向け)
                 if (joystick.active) {
-                    // ★修正点2: currentX/Yの代わりにdeltaX/Yを使用
+                    // deltaX/Yを使用
                     const diffX = joystick.deltaX;
                     const diffY = joystick.deltaY;
                     let distance = Math.sqrt(diffX * diffX + diffY * diffY);
@@ -370,17 +369,20 @@
                     return;
                 }
 
-                // ジョイスティックの描画基準位置 (Canvas座標系 - 固定)
-                const fixedBaseCenterX = canvas.width - joystick.radius - 20; 
-                const fixedBaseCenterY = canvas.height - joystick.radius - 20;
+                // 修正: HTML要素の位置を取得し、Canvas座標に変換して描画位置を決定
+                const containerRect = joystickContainer.getBoundingClientRect();
+                const canvasRect = canvas.getBoundingClientRect();
+
+                // ジョイスティックの描画基準位置 (Canvas座標系 - HTML要素の中心)
+                const fixedBaseCenterX = (containerRect.left + containerRect.width / 2) - canvasRect.left; 
+                const fixedBaseCenterY = (containerRect.top + containerRect.height / 2) - canvasRect.top;
 
                 let knobX, knobY;
                 
                 if (joystick.active) {
-                    // ★修正点3: deltaX/Yを変位として使用し、ノブの位置を計算
+                    // deltaX/Yを変位として使用し、ノブの位置を計算
                     knobX = fixedBaseCenterX + joystick.deltaX;
                     knobY = fixedBaseCenterY + joystick.deltaY;
-
                 } else {
                     // Inactive時 (常時表示): ベースとノブは固定位置に静止
                     knobX = fixedBaseCenterX;
@@ -886,13 +888,30 @@
                 e.preventDefault();
                 const touch = e.touches[0];
                 
+                const containerRect = joystickContainer.getBoundingClientRect();
+                
                 joystick.active = true;
-                // 画面全体座標を記録 (タッチ開始点)
-                joystick.startX = touch.clientX;
-                joystick.startY = touch.clientY;
-                // currentX/Yは不要になり、代わりにdeltaX/Yを使用
-                joystick.deltaX = 0;
-                joystick.deltaY = 0;
+                // 修正: コンテナの中心座標を記録 (画面全体座標系)
+                joystick.joystickCenterScreenX = containerRect.left + containerRect.width / 2;
+                joystick.joystickCenterScreenY = containerRect.top + containerRect.height / 2;
+                
+                // 初回のタッチ位置が中心からどれだけ離れているかに応じてdeltaX/Yを設定
+                let diffX = touch.clientX - joystick.joystickCenterScreenX;
+                let diffY = touch.clientY - joystick.joystickCenterScreenY;
+
+                const distance = Math.sqrt(diffX * diffX + diffY * diffY);
+
+                // 初回のタッチ位置が範囲外であれば、範囲内に制限する
+                if (distance > joystick.radius) {
+                    const angle = Math.atan2(diffY, diffX);
+                    diffX = Math.cos(angle) * joystick.radius;
+                    diffY = Math.sin(angle) * joystick.radius;
+                }
+                
+                // 描画と移動に使用する変位を更新
+                joystick.deltaX = diffX;
+                joystick.deltaY = diffY;
+
             }, { passive: false });
 
             joystickContainer.addEventListener('touchmove', (e) => {
@@ -900,9 +919,9 @@
                 e.preventDefault();
                 const touch = e.touches[0];
                 
-                // タッチ開始点からの移動差分を計算 (画面座標系)
-                let diffX = touch.clientX - joystick.startX;
-                let diffY = touch.clientY - joystick.startY;
+                // 修正: タッチ位置と記録した中心座標との差分を計算
+                let diffX = touch.clientX - joystick.joystickCenterScreenX;
+                let diffY = touch.clientY - joystick.joystickCenterScreenY;
                 const distance = Math.sqrt(diffX * diffX + diffY * diffY);
                 
                 // ジョイスティックの可動範囲を制限 (円形)
@@ -912,7 +931,7 @@
                     diffY = Math.sin(angle) * joystick.radius;
                 }
                 
-                // ★修正点4: 描画と移動に使用する変位を更新
+                // 描画と移動に使用する変位を更新
                 joystick.deltaX = diffX;
                 joystick.deltaY = diffY;
 
@@ -920,7 +939,7 @@
 
             joystickContainer.addEventListener('touchend', () => {
                 joystick.active = false;
-                // ★修正点5: タッチ終了時に変位をリセット
+                // タッチ終了時に変位をリセット
                 joystick.deltaX = 0; 
                 joystick.deltaY = 0;
             });
@@ -1001,4 +1020,3 @@
     </script>
 </body>
 </html>
-
