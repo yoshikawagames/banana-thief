@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>バナナを盗んで食え（オリジナルリズム - 速度修正）</title>
+    <title>バナナを盗んで食え（ジョイコン修正版）</title>
     <!-- Tailwind CSSを読み込み -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -197,10 +197,11 @@
             // ジョイスティック変数
             let joystick = {
                 active: false,
-                startX: 0,
+                startX: 0, // 画面座標 (タッチ開始点)
                 startY: 0,
-                currentX: 0,
-                currentY: 0,
+                // ★修正点1: 描画と移動に使用する画面座標の変位
+                deltaX: 0, 
+                deltaY: 0,
                 radius: 60, 
                 innerRadius: 25 
             };
@@ -245,7 +246,6 @@
             
             // --- リズムゲーム変数 ---
             let rhythmNotes = [];
-            // ★修正ポイント１：ノートの落下速度を安全な値に下げます (3.5 -> 2.0)
             const RHYTHM_NOTE_SPEED = 2.0; 
             
             const hitZoneHeight = 50;
@@ -283,8 +283,9 @@
 
                 // 2. ジョイスティック入力 (モバイル向け)
                 if (joystick.active) {
-                    const diffX = joystick.currentX - joystick.startX;
-                    const diffY = joystick.currentY - joystick.startY;
+                    // ★修正点2: currentX/Yの代わりにdeltaX/Yを使用
+                    const diffX = joystick.deltaX;
+                    const diffY = joystick.deltaY;
                     let distance = Math.sqrt(diffX * diffX + diffY * diffY);
 
                     // デッドゾーンと速度スケーリングの導入
@@ -320,7 +321,7 @@
             function initGame() {
                 const difficulty = difficultySelect.value;
                 
-                // ★ユーザーが設定した弾速を適用
+                // ユーザーが設定した弾速を適用
                 if (difficulty === 'easy') {
                     // かんたん: 1.5
                     bulletSpeed = 1.5; 
@@ -369,37 +370,16 @@
                     return;
                 }
 
-                const canvasRect = canvas.getBoundingClientRect();
-                
-                // ジョイスティックの描画基準位置 (Canvas座標系)
+                // ジョイスティックの描画基準位置 (Canvas座標系 - 固定)
                 const fixedBaseCenterX = canvas.width - joystick.radius - 20; 
                 const fixedBaseCenterY = canvas.height - joystick.radius - 20;
 
                 let knobX, knobY;
                 
                 if (joystick.active) {
-                    // Active時: ノブの位置を計算
-                    
-                    const startX_rel = joystick.startX - canvasRect.left; 
-                    const startY_rel = joystick.startY - canvasRect.top;
-                    const currentX_rel = joystick.currentX - canvasRect.left; 
-                    const currentY_rel = joystick.currentY - canvasRect.top;
-                    
-                    const diffX = currentX_rel - startX_rel;
-                    const diffY = currentY_rel - startY_rel;
-                    
-                    knobX = fixedBaseCenterX + diffX;
-                    knobY = fixedBaseCenterY + diffY;
-
-                    const distance = Math.sqrt(
-                        (knobX - fixedBaseCenterX) ** 2 + (knobY - fixedBaseCenterY) ** 2
-                    );
-                    
-                    if (distance > joystick.radius) {
-                        const angle = Math.atan2(knobY - fixedBaseCenterY, knobX - fixedBaseCenterX);
-                        knobX = fixedBaseCenterX + Math.cos(angle) * joystick.radius;
-                        knobY = fixedBaseCenterY + Math.sin(angle) * joystick.radius;
-                    }
+                    // ★修正点3: deltaX/Yを変位として使用し、ノブの位置を計算
+                    knobX = fixedBaseCenterX + joystick.deltaX;
+                    knobY = fixedBaseCenterY + joystick.deltaY;
 
                 } else {
                     // Inactive時 (常時表示): ベースとノブは固定位置に静止
@@ -614,7 +594,7 @@
             }
             
             function moveRhythmNotes() {
-                const noteSpeed = RHYTHM_NOTE_SPEED; // 修正後の速度 (2.0) を使用
+                const noteSpeed = RHYTHM_NOTE_SPEED; 
                 
                 rhythmNotes.forEach(note => {
                     note.y += noteSpeed;
@@ -653,7 +633,6 @@
                 });
             }
 
-            // ★修正ポイント２：ノートの生成位置と間隔を調整し、ゆっくり落ちてくるようにします
             function generateRhythmNotes() {
                 rhythmNotes = []; 
                 const noteCount = eatMax; // 10回タップ成功でクリア
@@ -908,11 +887,12 @@
                 const touch = e.touches[0];
                 
                 joystick.active = true;
-                // 画面全体座標を記録
+                // 画面全体座標を記録 (タッチ開始点)
                 joystick.startX = touch.clientX;
                 joystick.startY = touch.clientY;
-                joystick.currentX = touch.clientX;
-                joystick.currentY = touch.clientY;
+                // currentX/Yは不要になり、代わりにdeltaX/Yを使用
+                joystick.deltaX = 0;
+                joystick.deltaY = 0;
             }, { passive: false });
 
             joystickContainer.addEventListener('touchmove', (e) => {
@@ -920,27 +900,29 @@
                 e.preventDefault();
                 const touch = e.touches[0];
                 
-                let newX = touch.clientX;
-                let newY = touch.clientY;
-                
-                const diffX = newX - joystick.startX;
-                const diffY = newY - joystick.startY;
+                // タッチ開始点からの移動差分を計算 (画面座標系)
+                let diffX = touch.clientX - joystick.startX;
+                let diffY = touch.clientY - joystick.startY;
                 const distance = Math.sqrt(diffX * diffX + diffY * diffY);
                 
-                // ジョイスティックの可動範囲を制限 (ノブの移動はタッチ開始位置からの距離に制限)
+                // ジョイスティックの可動範囲を制限 (円形)
                 if (distance > joystick.radius) {
                     const angle = Math.atan2(diffY, diffX);
-                    newX = joystick.startX + Math.cos(angle) * joystick.radius;
-                    newY = joystick.startY + Math.sin(angle) * joystick.radius;
+                    diffX = Math.cos(angle) * joystick.radius;
+                    diffY = Math.sin(angle) * joystick.radius;
                 }
                 
-                // ノブの位置を更新（制限されたタッチ位置）
-                joystick.currentX = newX;
-                joystick.currentY = newY;
+                // ★修正点4: 描画と移動に使用する変位を更新
+                joystick.deltaX = diffX;
+                joystick.deltaY = diffY;
+
             }, { passive: false });
 
             joystickContainer.addEventListener('touchend', () => {
                 joystick.active = false;
+                // ★修正点5: タッチ終了時に変位をリセット
+                joystick.deltaX = 0; 
+                joystick.deltaY = 0;
             });
             // ------------------------------------
 
