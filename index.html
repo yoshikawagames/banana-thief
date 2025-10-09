@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>バナナを盗んで食え（ジョイコン座標補正版）</title>
+    <title>バナナを盗んで食え（エラー修正版2）</title>
     <!-- Tailwind CSSを読み込み -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -81,14 +81,13 @@
             background-color: rgba(0, 0, 0, 0.6); 
             border-radius: 0.75rem;
         }
-        /* ジョイスティックコンテナ (モバイル/タブレット専用) - 170pxに拡大 */
+        /* ジョイスティックコンテナ (モバイル/タブレット専用) - 画面右下に固定 */
         #joystick-container {
-            /* 画面ビューポートの右下隅に固定 */
             position: fixed; 
-            bottom: 20px;
+            bottom: 50px; /* 画面下端から50px上 (プレイヤーの初期位置に近似) */
             right: 20px; 
-            width: 170px; /* タッチ領域を拡大 */
-            height: 170px; /* タッチ領域を拡大 */
+            width: 170px; 
+            height: 170px; 
             /* PCでは非表示 (デフォルト) */
             display: none; 
             z-index: 10;
@@ -167,10 +166,17 @@
         </div>
     </div>
 
+    <!-- nipplejsライブラリの読み込み -->
+    <script src="https://unpkg.com/nipplejs@0.8.0/dist/nipplejs.min.js"></script>
     <script>
         window.onload = function() {
             const canvas = document.getElementById('gameCanvas');
             const ctx = canvas.getContext('2d');
+            
+            // BGM関連の変数
+            const BGM_URL = 'https://raw.githubusercontent.com/yoshikawagames/banana-thief/main/bananasong.mp3'; 
+            let gameBGM = null; 
+            let bgmReady = false; 
             
             // UI要素を取得
             const startButton = document.getElementById('startButton');
@@ -183,9 +189,12 @@
             const difficultySelect = document.getElementById('difficulty');
             const rhythmIntroContainer = document.getElementById('rhythm-intro-container');
             const rhythmStartButton = document.getElementById('rhythmStartButton');
-            const rhythmLifeDisplay = document.getElementById('rhythm-life-display');
             const hitGradeDisplay = document.getElementById('hit-grade-display'); 
             const joystickContainer = document.getElementById('joystick-container'); 
+            
+            // --- 修正点1: 頻繁にアクセスされるリズムゲームUI要素をキャッシュ ---
+            const rhythmGameContainer = document.getElementById('rhythm-game-container');
+            const rhythmLifeDisplay = document.getElementById('rhythm-life-display');
             
             // リズムゲームのレーンボタンを取得
             const laneButtonLeft = document.getElementById('laneButtonLeft');
@@ -197,17 +206,12 @@
             // ジョイスティック変数
             let joystick = {
                 active: false,
-                joystickCenterScreenX: 0, // コンテナの中心座標 (画面全体座標系)
-                joystickCenterScreenY: 0, // コンテナの中心座標 (画面全体座標系)
                 deltaX: 0, 
                 deltaY: 0,
                 radius: 60, 
                 innerRadius: 25 
             };
             const JOYSTICK_DEADZONE = 5; 
-            // *** 修正点: ジョイスティックの入力中心を右にずらす補正値 (ピクセル) ***
-            // ユーザー報告に基づき、入力中心を右に5ピクセル補正します。
-            const JOYSTICK_INPUT_CORRECTION_X = 5; 
             
             let animationFrameId;
             let startTime;
@@ -217,13 +221,8 @@
             let gameState = 'title'; 
             let player = { x: 0, y: 0, size: 20, speed: 5 };
 
-            // BGM関連の変数
-            let gameBGM;
-            const BGM_URL = 'https://raw.githubusercontent.com/yoshikawagames/banana-thief/main/bananasong.mp3'; 
-            let bgmReady = false; 
-            
             const banana = { x: 0, y: 0, width: 30, height: 60 };
-            const eatMax = 10; // ノートの数を10個に戻します
+            const eatMax = 10; 
             
             const guards = [
                 { x: 0, y: 0, size: 30, color: '#3B82F6' },
@@ -235,7 +234,6 @@
                 { x: 0, y: 0, size: 20, color: '#9CA3AF' }
             ];
             let bullets = []; 
-            // 弾速の初期値
             let bulletSpeed = 2.0; 
             let bulletInterval = 50; 
             let visitorBulletInterval = 120;
@@ -272,6 +270,72 @@
             window.addEventListener('resize', resizeCanvas);
             resizeCanvas();
 
+            // BGMの初期化
+            function initBGM() {
+                if (!gameBGM) {
+                    gameBGM = new Audio(BGM_URL);
+                    gameBGM.loop = true;
+                    gameBGM.preload = 'auto';
+                    gameBGM.volume = 0.4;
+                    gameBGM.oncanplaythrough = () => {
+                        bgmReady = true;
+                        console.log("BGM ready.");
+                    };
+                    gameBGM.onerror = (e) => {
+                        console.error("BGM load error:", e);
+                        bgmReady = false;
+                    };
+                }
+            }
+
+            // BGM再生
+            function playBGM() {
+                // --- 修正点2: gameBGMがnullでないことを明示的に確認 ---
+                if (gameBGM && bgmReady && gameBGM.paused) {
+                    gameBGM.play().catch(e => console.log("BGM play failed (user interaction required or other error):", e));
+                }
+            }
+
+            // BGM停止
+            function stopBGM() {
+                if (gameBGM) {
+                    gameBGM.pause();
+                    gameBGM.currentTime = 0;
+                }
+            }
+            
+            // ジョイスティックの初期化
+            function initJoystick() {
+                // nipplejs (ジョイスティックライブラリ)
+                // ロードが失敗した場合に備えてnipplejsの存在を確認
+                if (typeof nipplejs === 'undefined') {
+                    console.error("NippleJS library not loaded. Joystick disabled.");
+                    return; 
+                }
+
+                const manager = nipplejs.create({
+                    zone: joystickContainer,
+                    mode: 'static', 
+                    position: { left: '50%', top: '50%' }, 
+                    color: '#10b981', 
+                    lockX: false, 
+                    lockY: false 
+                });
+
+                manager.on('move', function(evt, data) {
+                    joystick.active = true;
+                    if (data.vector) {
+                        // nipplejsのベクトルをそのまま使用
+                        joystick.deltaX = data.vector.x * joystick.radius;
+                        joystick.deltaY = -data.vector.y * joystick.radius; // Y軸は上向きを正に反転
+                    }
+                }).on('end', function(evt) {
+                    joystick.active = false;
+                    joystick.deltaX = 0;
+                    joystick.deltaY = 0;
+                });
+            }
+
             // プレイヤーの移動処理（モバイル/キーボード対応）
             function movePlayer() {
                 let dx = 0;
@@ -285,12 +349,10 @@
 
                 // 2. ジョイスティック入力 (モバイル向け)
                 if (joystick.active) {
-                    // deltaX/Yを使用
                     const diffX = joystick.deltaX;
                     const diffY = joystick.deltaY;
                     let distance = Math.sqrt(diffX * diffX + diffY * diffY);
 
-                    // デッドゾーンと速度スケーリングの導入
                     if (distance > JOYSTICK_DEADZONE) {
                         const displacementRatio = (distance - JOYSTICK_DEADZONE) / (joystick.radius - JOYSTICK_DEADZONE);
                         const scaledRatio = Math.min(1, Math.max(0, displacementRatio)); 
@@ -323,15 +385,12 @@
             function initGame() {
                 const difficulty = difficultySelect.value;
                 
-                // ユーザーが設定した弾速を適用
                 if (difficulty === 'easy') {
-                    // かんたん: 1.5
                     bulletSpeed = 1.5; 
                     bulletInterval = 60; 
                     visitorBulletInterval = 150; 
                     player.speed = 6;
                 } else if (difficulty === 'normal') {
-                    // ふつう: 2.0
                     bulletSpeed = 2.0; 
                     bulletInterval = 40; 
                     visitorBulletInterval = 100; 
@@ -339,7 +398,7 @@
                 }
 
                 player.x = canvas.width / 2;
-                player.y = canvas.height - 50;
+                player.y = canvas.height - 50; 
                 
                 banana.x = canvas.width / 2 - banana.width / 2;
                 banana.y = 50;
@@ -364,47 +423,6 @@
             }
             
             // --- 描画関数群 ---
-
-            // --- ジョイスティック描画 ---
-            function drawJoystick() {
-                if (getComputedStyle(joystickContainer).display === 'none' || gameState !== 'playing') {
-                    joystick.active = false;
-                    return;
-                }
-
-                // HTML要素の位置を取得し、Canvas座標に変換して描画位置を決定
-                const containerRect = joystickContainer.getBoundingClientRect();
-                const canvasRect = canvas.getBoundingClientRect();
-
-                // ジョイスティックの描画基準位置 (Canvas座標系 - HTML要素の中心)
-                // 描画位置には補正値を適用しません。
-                const fixedBaseCenterX = (containerRect.left + containerRect.width / 2) - canvasRect.left; 
-                const fixedBaseCenterY = (containerRect.top + containerRect.height / 2) - canvasRect.top;
-
-                let knobX, knobY;
-                
-                if (joystick.active) {
-                    // deltaX/Yを変位として使用し、ノブの位置を計算
-                    knobX = fixedBaseCenterX + joystick.deltaX;
-                    knobY = fixedBaseCenterY + joystick.deltaY;
-                } else {
-                    // Inactive時 (常時表示): ベースとノブは固定位置に静止
-                    knobX = fixedBaseCenterX;
-                    knobY = fixedBaseCenterY;
-                }
-                
-                // 1. 外側の円（ベース）を描画
-                ctx.beginPath();
-                ctx.arc(fixedBaseCenterX, fixedBaseCenterY, joystick.radius, 0, Math.PI * 2, true);
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'; 
-                ctx.fill();
-
-                // 2. 内側の円（ノブ）を描画
-                ctx.beginPath();
-                ctx.arc(knobX, knobY, joystick.innerRadius, 0, Math.PI * 2, true);
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'; 
-                ctx.fill();
-            }
 
             function drawPlayer() {
                 const s = player.size / 4; 
@@ -608,7 +626,7 @@
 
                 let notesPassed = false;
                 rhythmNotes = rhythmNotes.filter(note => {
-                    // ノートが判定ゾーンを大きく通り過ぎたらミス（ゲームオーバー）
+                    // ノートが判定ゾーンを大きく通り過ぎたらミス（ライフ減少）
                     if (note.y > rhythmHitZoneY + hitZoneHeight + 20) { 
                         notesPassed = true;
                         return false;
@@ -622,8 +640,9 @@
                     lastHitGrade = 'MISS';
                     hitGradeTimer = 45;
 
-                    // 1つでもミスしたらゲームオーバー (イージーモード除く)
-                    if (difficultySelect.value === 'normal' || rhythmGameMisses >= rhythmMaxMisses) {
+                    updateRhythmLifeDisplay();
+
+                    if (rhythmGameMisses >= rhythmMaxMisses) {
                          gameState = 'gameOver';
                          endTime = performance.now();
                     }
@@ -633,6 +652,18 @@
             function drawRhythmGame() {
                 ctx.fillStyle = hitZoneColor;
                 ctx.fillRect(0, rhythmHitZoneY, canvas.width, hitZoneHeight);
+                
+                // レーンの区切り線
+                const laneWidth = canvas.width / 3;
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(laneWidth, rhythmHitZoneY);
+                ctx.lineTo(laneWidth, canvas.height);
+                ctx.moveTo(laneWidth * 2, rhythmHitZoneY);
+                ctx.lineTo(laneWidth * 2, canvas.height);
+                ctx.stroke();
+
                 ctx.fillStyle = '#6D28D9';
                 rhythmNotes.forEach(note => {
                     ctx.fillRect(note.x - note.size / 2, note.y - note.size / 2, note.size, note.size);
@@ -641,391 +672,243 @@
 
             function generateRhythmNotes() {
                 rhythmNotes = []; 
-                const noteCount = eatMax; // 10回タップ成功でクリア
-                const noteSpacing = 80; // ノート間の垂直間隔を80pxに設定（落下速度と合わせて調整）
-                const totalLanes = rhythmLanes.length;
+                const noteCount = eatMax;
+                const noteSpacing = 80; 
+                const laneWidth = canvas.width / 3;
 
-                for (let i = 0; i < noteCount; i++) {
-                    const laneIndex = Math.floor(Math.random() * totalLanes);
+                // ランダムなノーツを生成
+                for(let i = 0; i < noteCount; i++) {
+                    const laneIndex = Math.floor(Math.random() * rhythmLanes.length);
+                    const noteX = laneWidth * laneIndex + (laneWidth / 2);
+                    const noteY = -i * noteSpacing; 
+                    
                     rhythmNotes.push({
-                        x: (canvas.width / totalLanes) * (laneIndex + 0.5),
-                        // 画面外の上部から、一定の間隔で配置
-                        y: -100 - (i * noteSpacing), // -100pxから開始し、80pxずつ離す
-                        size: 30,
-                        lane: rhythmLanes[laneIndex]
+                        x: noteX,
+                        y: noteY,
+                        lane: rhythmLanes[laneIndex],
+                        size: 20
                     });
                 }
-                // ノートが古いものから処理されるように、Y座標が最も低い（画面上端外にある）ものからソート
-                rhythmNotes.sort((a, b) => a.y - b.y);
-            }
-
-            // リズムゲームの初期化
-            function initRhythmGame() { 
-                rhythmNotes = []; 
-                rhythmGameMisses = 0; 
-                rhythmScore = 0;
-                generateRhythmNotes(); // ノートを事前に10個生成
+                
+                // 食べたバナナの表示を更新
+                eatCountDisplay.textContent = `食べたバナナ... ${rhythmScore}/${eatMax}`;
+                updateRhythmLifeDisplay();
             }
 
             function handleRhythmTap(lane) {
-                if (gameState !== 'rhythmGame') return;
+                if (gameState !== 'rhythm') return;
 
-                let hit = false;
-                let bestHitDistance = Infinity;
-                let hitIndex = -1;
-                
-                const hitMargin = 30; 
-                const perfectRange = 15; 
+                let bestHit = null;
+                let bestDistance = Infinity;
+                const hitThreshold = 30; // 判定のしきい値
 
-                // 一番手前のノートをチェック（y座標が最大のもの）
-                for (let i = rhythmNotes.length - 1; i >= 0; i--) {
+                for (let i = 0; i < rhythmNotes.length; i++) {
                     const note = rhythmNotes[i];
-                    const noteCenterY = note.y;
-                    const hitZoneCenterY = rhythmHitZoneY + hitZoneHeight / 2;
-                    const distance = Math.abs(noteCenterY - hitZoneCenterY);
-
-                    // 判定ゾーンの近くにある、かつレーンが一致するノートを探す
-                    if (note.lane === lane && 
-                        note.y > rhythmHitZoneY - hitMargin && 
-                        note.y < rhythmHitZoneY + hitZoneHeight + hitMargin) {
-                        
-                         // 最初に見つかったノートが最良の候補
-                         bestHitDistance = distance;
-                         hitIndex = i;
-                         break; // 最初の有効なノートを見つけたらループを抜ける
+                    if (note.lane === lane) {
+                        const distance = Math.abs(note.y - (rhythmHitZoneY + hitZoneHeight / 2));
+                        if (distance < hitThreshold && distance < bestDistance) {
+                            bestDistance = distance;
+                            bestHit = i;
+                        }
                     }
                 }
 
-                if (hitIndex !== -1) {
-                    // ノートがヒットした場合
-                    rhythmNotes.splice(hitIndex, 1); // ノートを削除
+                if (bestHit !== null) {
+                    rhythmNotes.splice(bestHit, 1);
                     rhythmScore++;
                     
-                    if (bestHitDistance <= perfectRange) {
+                    if (rhythmScore >= eatMax) {
+                        gameState = 'win';
+                        endTime = performance.now();
+                    }
+                    
+                    eatCountDisplay.textContent = `食べたバナナ... ${rhythmScore}/${eatMax}`;
+                    
+                    // 判定表示ロジック
+                    if (bestDistance < 10) {
                         lastHitGrade = 'PERFECT!';
+                    } else if (bestDistance < 20) {
+                        lastHitGrade = 'GREAT!';
                     } else {
-                        lastHitGrade = 'GOOD!';
+                        lastHitGrade = 'GOOD';
                     }
                     hitGradeTimer = 45; 
-                    
-                    if (rhythmScore >= eatMax) {
-                        gameState = 'win'; 
-                        endTime = performance.now();
-                    }
                 } else {
-                    // ノートがない、またはタイミングが合わなかった場合
+                    // ミス判定 (空タップ)
+                    rhythmGameMisses++;
+                    gameFlashTimer = 15; 
                     lastHitGrade = 'MISS';
                     hitGradeTimer = 45;
-                    gameFlashTimer = 15; 
-                    rhythmGameMisses++;
+                    updateRhythmLifeDisplay();
                     
-                    if (difficultySelect.value === 'normal' || rhythmGameMisses >= rhythmMaxMisses) {
-                        gameState = 'gameOver';
-                        endTime = performance.now();
+                    if (rhythmGameMisses >= rhythmMaxMisses) {
+                         gameState = 'gameOver';
+                         endTime = performance.now();
                     }
                 }
             }
             
+            function updateRhythmLifeDisplay() {
+                const remaining = rhythmMaxMisses - rhythmGameMisses;
+                rhythmLifeDisplay.textContent = `失敗回数: ${rhythmGameMisses}/${rhythmMaxMisses} (残り: ${remaining})`;
+            }
 
-            // ゲームループ
+            // --- メインゲームループ ---
             function gameLoop() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height); 
-                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                frameCount++;
+
                 if (gameState === 'playing') {
-                    frameCount++;
-                    movePlayer(); 
+                    // BGMの再生を開始
+                    playBGM();
+                    
+                    movePlayer();
+                    drawBanana();
+                    drawGuards();
+                    drawVisitors();
+                    
+                    // プレイヤーの点滅表示
+                    if (gameFlashTimer > 0) {
+                        gameFlashTimer--;
+                        if (frameCount % 4 < 2) { // プレイヤーを点滅させる
+                            drawPlayer();
+                        }
+                    } else {
+                        drawPlayer();
+                    }
+
+                    // 弾丸の生成と移動
                     createInitialBullet();
                     createGuardBulletPattern();
                     createVisitorBulletPattern();
                     moveBullets();
-                    
-                    if (checkCollision()) {
-                        gameFlashTimer = 15; 
+                    drawBullets();
+
+                    // 衝突判定
+                    if (checkCollision() && gameFlashTimer === 0) {
                         gameState = 'gameOver';
                         endTime = performance.now();
                     }
-                    if (checkBananaProximity()) {
-                        gameState = 'rhythmIntro';
-                    }
-                } else if (gameState === 'rhythmGame') {
-                    // ノートの継続生成ロジックは削除されています
                     
+                    // バナナの近くにいるか判定
+                    if (checkBananaProximity()) {
+                        eatBananaContainer.classList.remove('hidden');
+                        // --- 修正点1: キャッシュした変数を使用 ---
+                        rhythmGameContainer.classList.add('hidden');
+                        rhythmLifeDisplay.classList.add('hidden');
+                        
+                        // 近くにいる状態で確定ボタンを押したらリズムゲームへ
+                        if (keys[' '] || keys['enter']) {
+                            gameState = 'rhythm_intro';
+                            keys[' '] = false; // 連続入力防止
+                            keys['enter'] = false;
+                        }
+                    } else {
+                        eatBananaContainer.classList.add('hidden');
+                    }
+
+                } else if (gameState === 'rhythm_intro') {
+                    // 何も描画しない（UIがオーバーレイとして表示されるため）
+                } 
+                
+                else if (gameState === 'rhythm') {
                     moveRhythmNotes();
                     drawRhythmGame();
-
+                    
+                    // 判定メッセージの描画
                     if (hitGradeTimer > 0) {
                         hitGradeTimer--;
                         hitGradeDisplay.textContent = lastHitGrade;
-                        hitGradeDisplay.style.opacity = 1;
-                        if (lastHitGrade === 'PERFECT!') {
-                            hitGradeDisplay.style.color = '#10B981'; 
-                            hitGradeDisplay.style.fontSize = '3.5rem';
-                        } else if (lastHitGrade === 'GOOD!') {
-                            hitGradeDisplay.style.color = '#FDE047'; 
-                            hitGradeDisplay.style.fontSize = '3rem';
-                        } else {
-                            hitGradeDisplay.style.color = '#EF4444'; 
-                            hitGradeDisplay.style.fontSize = '3rem';
-                        }
+                        hitGradeDisplay.style.opacity = hitGradeTimer / 45; 
+                        hitGradeDisplay.style.transform = `translate(-50%, -50%) scale(${1 + (45 - hitGradeTimer) / 100})`;
                     } else {
-                        hitGradeDisplay.style.opacity = 0;
+                         hitGradeDisplay.style.opacity = 0;
                     }
-                }
 
-                if (gameState === 'playing') {
-                    drawPlayer();
+                } else if (gameState === 'gameOver' || gameState === 'win') {
+                    stopBGM();
+                    drawBanana();
                     drawGuards();
                     drawVisitors();
-                    drawBanana();
-                    drawBullets();
-                    drawJoystick(); // ジョイスティックの描画を常に行う
+                    drawBullets(); // 最後の状態を描画
+                    
+                    // 結果メッセージを表示
+                    gameMessageOverlay.classList.remove('hidden');
+                    retryButton.classList.remove('hidden');
+                    
+                    if (gameState === 'gameOver') {
+                        gameMessageOverlay.textContent = 'GAME OVER\n監視員に見つかった！';
+                    } else {
+                        const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
+                        gameMessageOverlay.textContent = `CLEAR!\nバナナゲット！\nタイム: ${timeTaken}秒`;
+                    }
                 }
-
-                if (gameFlashTimer > 0) {
-                    ctx.fillStyle = 'rgba(255, 0, 0, 0.4)';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    gameFlashTimer--;
-                }
-
-
-                updateUI();
                 
                 animationFrameId = requestAnimationFrame(gameLoop);
             }
 
-            // UI要素の更新 (省略なし)
-            function updateUI() {
-                gameUI.classList.add('hidden');
-                eatBananaContainer.classList.add('hidden');
-                retryButton.classList.add('hidden');
-                rhythmIntroContainer.classList.add('hidden');
-                rhythmLifeDisplay.classList.add('hidden');
-                gameMessageOverlay.classList.add('hidden'); 
+            // --- イベントリスナー ---
 
-                const currentDifficulty = difficultySelect.value;
-                let baseMessage = '';
-                const duration = endTime ? ((endTime - startTime) / 1000).toFixed(2) : 0;
-                
-                switch(gameState) {
-                    case 'title':
-                        if (gameBGM) { gameBGM.pause(); gameBGM.currentTime = 0; }
-                        gameIntro.classList.remove('hidden');
-                        break;
-                    case 'playing':
-                        gameIntro.classList.add('hidden');
-                        gameUI.classList.remove('hidden');
-                        break;
-                    case 'rhythmIntro':
-                        gameBGM.pause();
-                        gameIntro.classList.add('hidden');
-                        rhythmIntroContainer.classList.remove('hidden');
-                        cancelAnimationFrame(animationFrameId);
-                        break;
-                    case 'rhythmGame':
-                        gameIntro.classList.add('hidden');
-                        gameUI.classList.remove('hidden');
-                        eatBananaContainer.classList.remove('hidden');
-                        eatCountDisplay.textContent = `食べたバナナ... ${rhythmScore}/${eatMax}`;
-
-                        if (currentDifficulty === 'easy') {
-                            rhythmLifeDisplay.textContent = `残りミス回数: ${rhythmMaxMisses - rhythmGameMisses}`;
-                            rhythmLifeDisplay.classList.remove('hidden');
-                        }
-                        break;
-                    
-                    case 'win': 
-                        gameBGM.pause();
-                        gameBGM.currentTime = 0;
-                        gameMessageOverlay.innerHTML = `**大成功！バナナを盗み食った！**<br>潜入時間: ${duration}秒`;
-                        gameUI.classList.remove('hidden');
-                        retryButton.classList.remove('hidden');
-                        gameMessageOverlay.classList.remove('hidden'); 
-                        cancelAnimationFrame(animationFrameId);
-                        break;
-
-                    case 'gameOver': 
-                        gameBGM.pause();
-                        gameBGM.currentTime = 0;
-                        
-                        if (rhythmScore >= 5) {
-                            baseMessage = '逮捕されたけどバナナの実は食べた！';
-                        } else if (rhythmScore > 0) {
-                            baseMessage = '逮捕されたけど皮だけ食べた！';
-                        } else {
-                            baseMessage = '逮捕された！ゲームオーバー';
-                        }
-                        
-                        gameMessageOverlay.innerHTML = `${baseMessage}<br>潜入時間: ${duration}秒`;
-                        gameUI.classList.remove('hidden');
-                        retryButton.classList.remove('hidden');
-                        gameMessageOverlay.classList.remove('hidden'); 
-                        cancelAnimationFrame(animationFrameId);
-                        break;
-                }
-            }
-
-            // --- キーボードイベントリスナー ---
-            document.addEventListener('keydown', (e) => { 
-                const key = e.key.toLowerCase();
-                if (key.startsWith('arrow') || ['w', 'a', 's', 'd'].includes(key)) {
-                    keys[key] = true;
-                }
-                // リズムゲームのキー操作
-                if (gameState === 'rhythmGame') {
-                    if (key === 'arrowleft') handleRhythmTap('left');
-                    if (key === 'arrowdown') handleRhythmTap('center');
-                    if (key === 'arrowright') handleRhythmTap('right');
-                }
-            });
-            document.addEventListener('keyup', (e) => { 
-                const key = e.key.toLowerCase();
-                if (key.startsWith('arrow') || ['w', 'a', 's', 'd'].includes(key)) {
-                    keys[key] = false;
-                }
-            });
-            
-            // --- ジョイスティックイベントリスナー (タッチ座標は画面全体座標系) ---
-            joystickContainer.addEventListener('touchstart', (e) => {
-                if (getComputedStyle(joystickContainer).display === 'none') return;
-                
-                if (gameState !== 'playing') return;
-                e.preventDefault();
-                const touch = e.touches[0];
-                
-                const containerRect = joystickContainer.getBoundingClientRect();
-                
-                joystick.active = true;
-                
-                // *** 修正点: 補正値を加えて、操作の基準点を右に移動 ***
-                joystick.joystickCenterScreenX = containerRect.left + containerRect.width / 2 + JOYSTICK_INPUT_CORRECTION_X;
-                joystick.joystickCenterScreenY = containerRect.top + containerRect.height / 2;
-                
-                // 初回のタッチ位置が中心からどれだけ離れているかに応じてdeltaX/Yを設定
-                let diffX = touch.clientX - joystick.joystickCenterScreenX;
-                let diffY = touch.clientY - joystick.joystickCenterScreenY;
-
-                const distance = Math.sqrt(diffX * diffX + diffY * diffY);
-
-                // 初回のタッチ位置が範囲外であれば、範囲内に制限する
-                if (distance > joystick.radius) {
-                    const angle = Math.atan2(diffY, diffX);
-                    diffX = Math.cos(angle) * joystick.radius;
-                    diffY = Math.sin(angle) * joystick.radius;
-                }
-                
-                // 描画と移動に使用する変位を更新
-                joystick.deltaX = diffX;
-                joystick.deltaY = diffY;
-
-            }, { passive: false });
-
-            joystickContainer.addEventListener('touchmove', (e) => {
-                if (!joystick.active || gameState !== 'playing') return;
-                e.preventDefault();
-                const touch = e.touches[0];
-                
-                // 修正: タッチ位置と記録した中心座標との差分を計算
-                // joystickCenterScreenXには補正値が含まれているため、入力は正しく補正されます。
-                let diffX = touch.clientX - joystick.joystickCenterScreenX;
-                let diffY = touch.clientY - joystick.joystickCenterScreenY;
-                const distance = Math.sqrt(diffX * diffX + diffY * diffY);
-                
-                // ジョイスティックの可動範囲を制限 (円形)
-                if (distance > joystick.radius) {
-                    const angle = Math.atan2(diffY, diffX);
-                    diffX = Math.cos(angle) * joystick.radius;
-                    diffY = Math.sin(angle) * joystick.radius;
-                }
-                
-                // 描画と移動に使用する変位を更新
-                joystick.deltaX = diffX;
-                joystick.deltaY = diffY;
-
-            }, { passive: false });
-
-            joystickContainer.addEventListener('touchend', () => {
-                joystick.active = false;
-                // タッチ終了時に変位をリセット
-                joystick.deltaX = 0; 
-                joystick.deltaY = 0;
-            });
-            // ------------------------------------
-
-            function tryPlayBGM() {
-                if (bgmReady) {
-                    gameBGM.currentTime = 0; 
-                    gameBGM.play().catch(error => {
-                        console.error("BGM再生失敗:", error);
-                    });
-                } else {
-                     // canplaythroughリスナーで再生を試みる（安全な方法）
-                     gameBGM.addEventListener('canplaythrough', function attemptPlayOnce() {
-                        gameBGM.removeEventListener('canplaythrough', attemptPlayOnce);
-                        gameBGM.currentTime = 0;
-                        gameBGM.play().catch(e => console.error("ロード後の再生試行に失敗:", e));
-                     });
-                     // ロードがまだ完了していない場合に備えて、ロードを再試行
-                     gameBGM.load(); 
-                }
-            }
-
+            // タイトル画面からゲーム開始
             startButton.addEventListener('click', () => {
-                tryPlayBGM(); 
-                gameState = 'playing';
+                gameIntro.classList.add('hidden');
+                gameUI.classList.remove('hidden');
                 initGame();
-                gameLoop();
+                gameState = 'playing';
             });
-
+            
+            // リズムゲームの説明画面から開始
             rhythmStartButton.addEventListener('click', () => {
-                gameState = 'rhythmGame';
-                initRhythmGame(); 
-                tryPlayBGM(); 
-                gameLoop();
+                rhythmIntroContainer.classList.add('hidden');
+                // --- 修正点1: キャッシュした変数を使用 ---
+                rhythmGameContainer.classList.remove('hidden');
+                rhythmLifeDisplay.classList.remove('hidden');
+                generateRhythmNotes(); 
+                gameState = 'rhythm';
             });
-            
+
+            // リトライボタン
             retryButton.addEventListener('click', () => {
-                gameState = 'playing';
-                initGame();
-                tryPlayBGM(); 
-                gameLoop();
+                gameMessageOverlay.classList.add('hidden');
+                retryButton.classList.add('hidden');
+                gameIntro.classList.remove('hidden');
+                gameUI.classList.add('hidden');
+                gameState = 'title';
             });
             
-            // リズムボタンのイベントリスナー (タッチ/クリック対応)
-            laneButtonLeft.addEventListener('click', () => {
-                handleRhythmTap('left');
+            // リズムゲームボタンのイベントリスナー (PC/モバイル)
+            laneButtonLeft.addEventListener('pointerdown', (e) => { e.preventDefault(); handleRhythmTap('left'); });
+            laneButtonCenter.addEventListener('pointerdown', (e) => { e.preventDefault(); handleRhythmTap('center'); });
+            laneButtonRight.addEventListener('pointerdown', (e) => { e.preventDefault(); handleRhythmTap('right'); });
+            
+            // キーボード入力
+            document.addEventListener('keydown', (e) => {
+                keys[e.key.toLowerCase()] = true;
+                
+                if (gameState === 'rhythm') {
+                    e.preventDefault();
+                    if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') {
+                        handleRhythmTap('left');
+                    } else if (e.key === 'ArrowDown' || e.key.toLowerCase() === 's') {
+                        handleRhythmTap('center');
+                    } else if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') {
+                        handleRhythmTap('right');
+                    }
+                } else if (gameState === 'playing' && (e.key === ' ' || e.key === 'Enter') && checkBananaProximity()) {
+                    gameState = 'rhythm_intro';
+                    rhythmIntroContainer.classList.remove('hidden');
+                    eatBananaContainer.classList.add('hidden');
+                }
             });
-            laneButtonCenter.addEventListener('click', () => {
-                handleRhythmTap('center');
-            });
-            laneButtonRight.addEventListener('click', () => {
-                handleRhythmTap('right');
+            document.addEventListener('keyup', (e) => {
+                keys[e.key.toLowerCase()] = false;
             });
 
-            // BGMの初期設定
-            gameBGM = new Audio(BGM_URL);
-            gameBGM.loop = true; 
-            gameBGM.volume = 0.2; 
-            // 初回ロードを試みる
-            gameBGM.load(); 
-
-            gameBGM.addEventListener('canplaythrough', () => {
-                bgmReady = true;
-                console.log("BGM: ロード完了。再生準備OK。");
-            });
-
-            gameBGM.addEventListener('error', (e) => {
-                // ロードエラーが発生した場合
-                console.error("BGMロードエラー:", e);
-                bgmReady = false; 
-            });
-
-            // 初期化
-            initGame();
-            updateUI();
+            // ゲーム初期化
+            initBGM();
+            initJoystick();
+            gameLoop();
         };
     </script>
 </body>
 </html>
-
-
-
