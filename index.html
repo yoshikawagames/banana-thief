@@ -81,11 +81,12 @@
             background-color: rgba(0, 0, 0, 0.6); 
             border-radius: 0.75rem;
         }
-        /* ジョイスティックコンテナ (モバイル/タブレット専用) - 170pxに拡大 */
+        /* ジョイスティックコンテナ (モバイル/タブレット専用) - 表示を確実にするためbottom位置を修正 */
         #joystick-container {
             /* 画面ビューポートの右下隅に固定 */
             position: fixed; 
-            bottom: 20px;
+            /* *** 修正点1: CSS表示位置を画面内に戻します (20px) *** */
+            bottom: 20px; 
             right: 20px; 
             width: 170px; /* タッチ領域を拡大 */
             height: 170px; /* タッチ領域を拡大 */
@@ -205,9 +206,11 @@
                 innerRadius: 25 
             };
             const JOYSTICK_DEADZONE = 5; 
-            // *** 修正点: ジョイスティックの入力中心を右にずらす補正値 (ピクセル) ***
-            // ユーザー報告に基づき、入力中心を右に5ピクセル補正します。
-                const JOYSTICK_INPUT_CORRECTION_X = 5; 
+            
+            // *** 修正点2: X軸の補正値は維持 (-20pxで左右の速度差を解消) ***
+            const JOYSTICK_INPUT_CORRECTION_X = -20; 
+            // *** 修正点2: Y軸の補正値はCSS変更に伴い大幅に減らす (20pxで微調整) ***
+            const JOYSTICK_INPUT_CORRECTION_Y = 20; 
 
             let animationFrameId;
             let startTime;
@@ -367,41 +370,55 @@
 
             // --- ジョイスティック描画 ---
             function drawJoystick() {
-                if (getComputedStyle(joystickContainer).display === 'none' || gameState !== 'playing') {
+                if (getComputedStyle(joystickContainer).display === 'none') {
                     joystick.active = false;
                     return;
                 }
+                
+                if (gameState !== 'playing') {
+                    return;
+                }
 
-                // HTML要素の位置を取得し、Canvas座標に変換して描画位置を決定
                 const containerRect = joystickContainer.getBoundingClientRect();
                 const canvasRect = canvas.getBoundingClientRect();
 
-                // ジョイスティックの描画基準位置 (Canvas座標系 - HTML要素の中心)
-                // 描画位置には補正値を適用しません。
-                const fixedBaseCenterX = (containerRect.left + containerRect.width / 2) - canvasRect.left; 
-                const fixedBaseCenterY = (containerRect.top + containerRect.height / 2) - canvasRect.top;
+                // Canvasの内部描画解像度とCSS表示サイズの比率を計算 (スケールファクター)
+                const scaleFactorX = canvas.width / canvasRect.width;
+                const scaleFactorY = canvas.height / canvasRect.height;
+                // アスペクト比が保たれているため、X方向のスケールを使用します。
+                const scaleFactor = scaleFactorX; 
+
+                // 描画基準位置の計算 (Canvas内部描画座標)
+                // HTML要素の中心位置(画面CSSピクセル)を、Canvas内部描画座標に変換
+                const baseCenterX_CSS = (containerRect.left + containerRect.width / 2) - canvasRect.left; 
+                const baseCenterY_CSS = (containerRect.top + containerRect.height / 2) - canvasRect.top;
+
+                // Canvas内部描画座標にスケーリング
+                const fixedBaseCenterX = baseCenterX_CSS * scaleFactor;
+                const fixedBaseCenterY = baseCenterY_CSS * scaleFactor;
 
                 let knobX, knobY;
 
+                // ノブの位置 (Canvas内部描画座標)
                 if (joystick.active) {
-                    // deltaX/Yを変位として使用し、ノブの位置を計算
-                    knobX = fixedBaseCenterX + joystick.deltaX;
-                    knobY = fixedBaseCenterY + joystick.deltaY;
+                    // deltaX/YはCSSピクセルなので、スケールを適用してCanvas座標にする
+                    knobX = fixedBaseCenterX + joystick.deltaX * scaleFactor;
+                    knobY = fixedBaseCenterY + joystick.deltaY * scaleFactor;
                 } else {
-                    // Inactive時 (常時表示): ベースとノブは固定位置に静止
+                    // Inactive時 (静止): ベースの中心にノブを描画
                     knobX = fixedBaseCenterX;
                     knobY = fixedBaseCenterY;
                 }
 
-                // 1. 外側の円（ベース）を描画
+                // 1. 外側の円（ベース）を描画 (半径にもスケールを適用)
                 ctx.beginPath();
-                ctx.arc(fixedBaseCenterX, fixedBaseCenterY, joystick.radius, 0, Math.PI * 2, true);
+                ctx.arc(fixedBaseCenterX, fixedBaseCenterY, joystick.radius * scaleFactor, 0, Math.PI * 2, true);
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'; 
                 ctx.fill();
 
-                // 2. 内側の円（ノブ）を描画
+                // 2. 内側の円（ノブ）を描画 (半径にもスケールを適用)
                 ctx.beginPath();
-                ctx.arc(knobX, knobY, joystick.innerRadius, 0, Math.PI * 2, true);
+                ctx.arc(knobX, knobY, joystick.innerRadius * scaleFactor, 0, Math.PI * 2, true);
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'; 
                 ctx.fill();
             }
@@ -778,8 +795,11 @@
                     drawVisitors();
                     drawBanana();
                     drawBullets();
-                    drawJoystick(); // ジョイスティックの描画を常に行う
+                    // drawJoystickはgameStateに関わらず呼び出すように修正
                 }
+                
+                // ジョイスティックは、ゲームが'playing'中に限り描画されます。
+                drawJoystick(); 
 
                 if (gameFlashTimer > 0) {
                     ctx.fillStyle = 'rgba(255, 0, 0, 0.4)';
@@ -896,9 +916,11 @@
 
                 joystick.active = true;
 
-                // *** 修正点: 補正値を加えて、操作の基準点を右に移動 ***
+                // *** 修正適用: 入力座標に補正値を適用し、タッチと中心を一致させる ***
+                // X座標補正: 右への偏りを修正するため-20px
                 joystick.joystickCenterScreenX = containerRect.left + containerRect.width / 2 + JOYSTICK_INPUT_CORRECTION_X;
-                joystick.joystickCenterScreenY = containerRect.top + containerRect.height / 2;
+                // Y座標補正: CSS変更に伴い、補正値を20pxに減らす
+                joystick.joystickCenterScreenY = containerRect.top + containerRect.height / 2 + JOYSTICK_INPUT_CORRECTION_Y;
 
                 // 初回のタッチ位置が中心からどれだけ離れているかに応じてdeltaX/Yを設定
                 let diffX = touch.clientX - joystick.joystickCenterScreenX;
@@ -924,8 +946,7 @@
                 e.preventDefault();
                 const touch = e.touches[0];
 
-                // 修正: タッチ位置と記録した中心座標との差分を計算
-                // joystickCenterScreenXには補正値が含まれているため、入力は正しく補正されます。
+                // タッチ位置と記録した中心座標 (補正済み) との差分を計算
                 let diffX = touch.clientX - joystick.joystickCenterScreenX;
                 let diffY = touch.clientY - joystick.joystickCenterScreenY;
                 const distance = Math.sqrt(diffX * diffX + diffY * diffY);
