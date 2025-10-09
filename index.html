@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>バナナを盗んで食え（ジョイコン修正版）</title>
+    <title>バナナを盗んで食え（ジョイコン座標補正版）</title>
     <!-- Tailwind CSSを読み込み -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -197,14 +197,17 @@
             // ジョイスティック変数
             let joystick = {
                 active: false,
-                joystickCenterScreenX: 0, // 修正: コンテナの中心座標 (画面全体座標系)
-                joystickCenterScreenY: 0, // 修正: コンテナの中心座標 (画面全体座標系)
+                joystickCenterScreenX: 0, // コンテナの中心座標 (画面全体座標系)
+                joystickCenterScreenY: 0, // コンテナの中心座標 (画面全体座標系)
                 deltaX: 0, 
                 deltaY: 0,
                 radius: 60, 
                 innerRadius: 25 
             };
             const JOYSTICK_DEADZONE = 5; 
+            // *** 修正点: ジョイスティックの入力中心を右にずらす補正値 (ピクセル) ***
+            // ユーザー報告に基づき、入力中心を右に5ピクセル補正します。
+            const JOYSTICK_INPUT_CORRECTION_X = 5; 
             
             let animationFrameId;
             let startTime;
@@ -369,11 +372,12 @@
                     return;
                 }
 
-                // 修正: HTML要素の位置を取得し、Canvas座標に変換して描画位置を決定
+                // HTML要素の位置を取得し、Canvas座標に変換して描画位置を決定
                 const containerRect = joystickContainer.getBoundingClientRect();
                 const canvasRect = canvas.getBoundingClientRect();
 
                 // ジョイスティックの描画基準位置 (Canvas座標系 - HTML要素の中心)
+                // 描画位置には補正値を適用しません。
                 const fixedBaseCenterX = (containerRect.left + containerRect.width / 2) - canvasRect.left; 
                 const fixedBaseCenterY = (containerRect.top + containerRect.height / 2) - canvasRect.top;
 
@@ -891,8 +895,9 @@
                 const containerRect = joystickContainer.getBoundingClientRect();
                 
                 joystick.active = true;
-                // 修正: コンテナの中心座標を記録 (画面全体座標系)
-                joystick.joystickCenterScreenX = containerRect.left + containerRect.width / 2;
+                
+                // *** 修正点: 補正値を加えて、操作の基準点を右に移動 ***
+                joystick.joystickCenterScreenX = containerRect.left + containerRect.width / 2 + JOYSTICK_INPUT_CORRECTION_X;
                 joystick.joystickCenterScreenY = containerRect.top + containerRect.height / 2;
                 
                 // 初回のタッチ位置が中心からどれだけ離れているかに応じてdeltaX/Yを設定
@@ -920,6 +925,7 @@
                 const touch = e.touches[0];
                 
                 // 修正: タッチ位置と記録した中心座標との差分を計算
+                // joystickCenterScreenXには補正値が含まれているため、入力は正しく補正されます。
                 let diffX = touch.clientX - joystick.joystickCenterScreenX;
                 let diffY = touch.clientY - joystick.joystickCenterScreenY;
                 const distance = Math.sqrt(diffX * diffX + diffY * diffY);
