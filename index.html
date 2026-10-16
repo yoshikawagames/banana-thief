@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>バナナを盗んで食え（超スロー版）</title>
+    <title>バナナを盗んで食え（レーザー柵トラップ版）</title>
     <!-- Tailwind CSSを読み込み -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -11,7 +11,7 @@
         
         body {
             font-family: 'M PLUS Rounded 1c', 'Press Start 2P', sans-serif;
-            background-color: #f0f0f0;
+            background-color: #0f172a;
             user-select: none;
             -webkit-user-select: none;
         }
@@ -23,7 +23,7 @@
             background-position: center; 
             background-repeat: no-repeat; 
             background-color: #228B22; 
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
             max-width: 100%;
             display: block;
             border-radius: 12px;
@@ -39,7 +39,7 @@
         }
         @media (min-width: 768px) {
             #game-title {
-                font-size: 2.2rem;
+                font-size: 2.1rem;
             }
         }
 
@@ -82,7 +82,6 @@
             box-shadow: none;
         }
 
-        /* リズム判定メッセージのスタイル */
         #hit-grade-display {
             position: absolute;
             top: 40%;
@@ -98,79 +97,68 @@
             z-index: 20;
         }
 
-        /* スコアリングメッセージのオーバーレイ */
         #game-message-overlay {
-            background-color: rgba(0, 0, 0, 0.75); 
+            background-color: rgba(0, 0, 0, 0.82); 
             border-radius: 0.75rem;
         }
         
-        /* ジョイスティックコンテナ (iPad/スマホ対応) */
         #joystick-container {
             position: absolute; 
             bottom: 15px; 
             right: 15px; 
-            width: 130px; 
-            height: 130px; 
+            width: 120px; 
+            height: 120px; 
             display: block; 
             border: 2px dashed rgba(239, 68, 68, 0.6); 
             border-radius: 50%;
             z-index: 15;
             pointer-events: auto; 
-            background: rgba(0, 0, 0, 0.15);
+            background: rgba(0, 0, 0, 0.2);
             touch-action: none;
         }
     </style>
 </head>
-<body class="flex flex-col items-center justify-center min-h-screen p-2 md:p-4 bg-slate-800 text-slate-100">
-    <div class="flex flex-col items-center p-4 md:p-6 bg-slate-900 rounded-2xl shadow-2xl border-4 border-amber-500 max-w-xl w-full">
-        <h1 id="game-title" class="text-2xl md:text-3xl text-amber-400 font-extrabold mb-3 text-center tracking-wider" style="text-shadow: 2px 2px 0 #000">バナナを盗んで食え★超スロー</h1>
+<body class="flex flex-col items-center justify-center min-h-screen p-2 md:p-4 bg-slate-900 text-slate-100">
+    <div class="flex flex-col items-center p-4 md:p-6 bg-slate-800 rounded-2xl shadow-2xl border-4 border-amber-500 max-w-xl w-full">
+        <h1 id="game-title" class="text-2xl md:text-3xl text-amber-400 font-extrabold mb-2 text-center tracking-wider" style="text-shadow: 2px 2px 0 #000">バナナを盗んで食え★レーザー出現！</h1>
 
-        <!-- ゲーム説明とタイトル画面 -->
-        <div id="game-intro" class="text-center text-gray-200 mb-4 transition-opacity duration-300">
-            <p class="mb-1 text-sm md:text-base">怪盗となり、美術館に展示されたバナナを盗み出せ！</p>
-            <p class="mb-3 text-xs md:text-sm text-amber-200">赤矢印の数はそのまま、スピードを極限まで遅くしました！</p>
+        <!-- タイトル・ゲーム説明 -->
+        <div id="game-intro" class="text-center text-gray-200 mb-3 transition-opacity duration-300">
+            <p class="mb-2 text-sm md:text-base">中央に<b>赤外線レーザー柵</b>を設置！</p>
 
-            <div class="mb-4">
-                <label for="difficulty" class="text-amber-300 text-sm font-bold block mb-1">難易度:</label>
-                <select id="difficulty" class="p-2 border-2 border-amber-500 rounded-lg bg-slate-800 text-amber-300 font-bold text-center">
-                    <option value="ultraslow">超スロー（激甘モード）</option>
-                </select>
+            <div class="p-3 mb-3 bg-red-950/70 border border-red-500 rounded-lg text-xs md:text-sm text-red-200">
+                ⚠️ <b>直線突撃は不可！</b><br>
+                まっすぐ向かうとレーザーで撃ち落とされます。<br>左右に迂回してバナナを奪え！
             </div>
 
-            <button id="startButton" class="btn-green px-6 py-3 rounded-xl text-lg font-black hover:scale-105 transform transition">怪盗開始！</button>
+            <button id="startButton" class="btn-green px-8 py-3 rounded-xl text-lg font-black hover:scale-105 transform transition">ミッション開始！</button>
         </div>
 
-        <!-- ゲームキャンバスエリア -->
+        <!-- キャンバス＆ゲーム内オーバーレイ -->
         <div class="relative w-full flex justify-center items-center my-2">
             <canvas id="gameCanvas" class="w-full h-auto rounded-xl pixel-art"></canvas>
 
-            <!-- スコアリング画面（ゲームオーバー/勝利）のオーバーレイ -->
             <div id="game-message-overlay" class="absolute inset-0 flex flex-col items-center justify-center text-center p-4 z-20 pointer-events-none text-white hidden">
                 <h2 id="overlay-title" class="text-3xl md:text-4xl font-black mb-2 text-amber-400" style="text-shadow: 3px 3px 0 #000;"></h2>
-                <p id="overlay-subtitle" class="text-lg md:text-xl font-bold"></p>
+                <p id="overlay-subtitle" class="text-base md:text-lg font-bold leading-relaxed whitespace-pre-line"></p>
             </div>
 
-            <!-- リズムゲームの説明画面 -->
-            <div id="rhythm-intro-container" class="hidden absolute inset-0 flex flex-col items-center justify-center p-4 bg-slate-950/85 rounded-xl z-20">
+            <div id="rhythm-intro-container" class="hidden absolute inset-0 flex flex-col items-center justify-center p-4 bg-slate-950/90 rounded-xl z-20">
                 <p class="text-amber-300 font-bold mb-4 text-center p-3 bg-slate-900 border border-amber-500 rounded-lg text-sm md:text-base">
-                    バナナに到達！<br>上から降ってくるノーツが下の黄色いゾーンに来たら、下の対応するボタンを押して召し上がれ！
+                    バナナに到達！<br>降ってくるノーツに合わせてボタンを押し、素早く平らげろ！
                 </p>
                 <button id="rhythmStartButton" class="btn-green p-3 px-8 rounded-xl text-lg font-bold hover:scale-105 transition">いただきます！</button>
             </div>
 
-            <!-- リズムゲームの判定表示エリア -->
             <div id="hit-grade-display">PERFECT!</div>
-
-            <!-- ジョイスティックコンテナ (モバイル/iPad対応) -->
             <div id="joystick-container" class="hidden"></div>
         </div>
 
-        <!-- ゲーム中のUI要素 -->
-        <div id="game-ui" class="mt-3 hidden w-full text-center">
-            <!-- 勝利条件: バナナを食べるボタン -->
+        <!-- ゲームUI -->
+        <div id="game-ui" class="mt-2 hidden w-full text-center">
             <div id="eat-banana-container" class="hidden flex flex-col items-center">
-                <p id="eat-count-display" class="text-base md:text-lg mb-2 text-amber-300 font-bold">食べたバナナ... 0/10</p>
-                <p id="rhythm-life-display" class="text-sm mb-2 text-red-400 font-bold"></p>
+                <p id="eat-count-display" class="text-base md:text-lg mb-1 text-amber-300 font-bold">食べたバナナ... 0/10</p>
+                <p id="rhythm-life-display" class="text-xs md:text-sm mb-2 text-red-400 font-bold"></p>
 
                 <div id="rhythm-game-container" class="flex justify-center gap-3 mt-1">
                     <button id="laneButtonLeft" class="rhythm-lane-btn bg-amber-500 hover:bg-amber-600 focus:bg-amber-700">←</button>
@@ -179,8 +167,7 @@
                 </div>
             </div>
 
-            <!-- リトライボタン -->
-            <button id="retryButton" class="btn-red px-6 py-3 mt-3 rounded-xl text-lg font-bold hover:scale-105 transition hidden">もう一度挑戦</button>
+            <button id="retryButton" class="btn-red px-6 py-3 mt-2 rounded-xl text-lg font-bold hover:scale-105 transition hidden">再挑戦する</button>
         </div>
     </div>
 
@@ -189,7 +176,6 @@
             const canvas = document.getElementById('gameCanvas');
             const ctx = canvas.getContext('2d');
 
-            // UI要素を取得
             const startButton = document.getElementById('startButton');
             const retryButton = document.getElementById('retryButton');
             const gameIntro = document.getElementById('game-intro');
@@ -209,26 +195,17 @@
             const laneButtonCenter = document.getElementById('laneButtonCenter');
             const laneButtonRight = document.getElementById('laneButtonRight');
 
-            // 入力状態
             let keys = {};
-            let joystick = {
-                active: false,
-                deltaX: 0, 
-                deltaY: 0,
-                radius: 45, 
-                innerRadius: 20 
-            };
+            let joystick = { active: false, deltaX: 0, deltaY: 0, radius: 45, innerRadius: 20 };
             const JOYSTICK_DEADZONE = 5; 
 
             let animationFrameId;
             let startTime;
             let endTime;
 
-            // ゲーム状態: 'title', 'playing', 'rhythmIntro', 'rhythmPlaying', 'gameOver', 'cleared'
             let gameState = 'title'; 
-            let player = { x: 0, y: 0, size: 22, speed: 5 };
+            let player = { x: 0, y: 0, size: 22, speed: 4.8 };
 
-            // BGM関連
             let gameBGM = new Audio('https://raw.githubusercontent.com/yoshikawagames/banana-thief/main/bananasong.mp3');
             gameBGM.loop = true;
 
@@ -240,36 +217,33 @@
                 { x: 0, y: 0, size: 30, color: '#3B82F6' },
                 { x: 0, y: 0, size: 30, color: '#3B82F6' }
             ];
-            const visitors = [
+            let visitors = [
                 { x: 0, y: 0, size: 20, color: '#9CA3AF' },
                 { x: 0, y: 0, size: 20, color: '#9CA3AF' },
                 { x: 0, y: 0, size: 20, color: '#9CA3AF' }
             ];
+
+            // レーザー柵（中央の直線進入を完全に遮断）
+            let lasers = [];
+
             let bullets = []; 
-            
-            // ★ 超スロースピードの設定 (本来の2.0/1.5から0.4へ劇的ダウン！) ★
             let bulletSpeed = 0.4; 
-            let bulletInterval = 50; // 発射数はそのまま
-            let visitorBulletInterval = 120;
+            let bulletInterval = 110; 
+            let visitorBulletInterval = 180; 
             let visitorBulletDirection = []; 
             let frameCount = 0;
-            const bulletSize = 12;
+            const bulletSize = 10; 
             let initialBulletFired = false;
 
-            let gameFlashTimer = 0; 
-
-            // --- リズムゲーム変数 ---
+            // リズムゲーム変数
             let rhythmNotes = [];
             const RHYTHM_NOTE_SPEED = 2.0; 
-
             const hitZoneHeight = 50;
             let rhythmHitZoneY; 
             const hitZoneColor = 'rgba(250, 204, 21, 0.4)';
             const rhythmLanes = ['left', 'center', 'right'];
             let rhythmGameMisses = 0;
             const rhythmMaxMisses = 3; 
-
-            // 判定表示用
             let hitGradeTimer = 0;
 
             function resizeCanvas() {
@@ -281,7 +255,6 @@
             window.addEventListener('resize', resizeCanvas);
             resizeCanvas();
 
-            // プレイヤーの移動処理
             function movePlayer() {
                 let dx = 0;
                 let dy = 0;
@@ -319,7 +292,6 @@
                 player.y = Math.max(player.size / 2, Math.min(canvas.height - player.size / 2, player.y));
             }
 
-            // ジョイスティックタッチコントロール
             function setupJoystickEvents() {
                 const handleTouch = (e) => {
                     if (gameState !== 'playing') return;
@@ -359,7 +331,6 @@
             }
             setupJoystickEvents();
 
-            // キーボード操作リスナー
             window.addEventListener('keydown', (e) => {
                 keys[e.key.toLowerCase()] = true;
                 if (gameState === 'rhythmPlaying') {
@@ -373,11 +344,10 @@
             });
 
             function initGame() {
-                // スピードは「超スロー(0.4)」に固定！
                 bulletSpeed = 0.4; 
-                bulletInterval = 50; 
-                visitorBulletInterval = 120; 
-                player.speed = 5;
+                bulletInterval = 110; 
+                visitorBulletInterval = 180; 
+                player.speed = 4.8;
 
                 player.x = canvas.width / 2;
                 player.y = canvas.height - 50;
@@ -388,9 +358,20 @@
                 guards[0].x = canvas.width / 4; guards[0].y = 90;
                 guards[1].x = canvas.width * 3 / 4; guards[1].y = 90;
 
-                visitors[0].x = canvas.width / 6; visitors[0].y = canvas.height / 2;
-                visitors[1].x = canvas.width / 2; visitors[1].y = canvas.height / 2.3;
-                visitors[2].x = canvas.width * 5 / 6; visitors[2].y = canvas.height / 2;
+                visitors[0].x = canvas.width / 6; visitors[0].y = canvas.height * 0.32;
+                visitors[1].x = canvas.width / 2; visitors[1].y = canvas.height * 0.30;
+                visitors[2].x = canvas.width * 5 / 6; visitors[2].y = canvas.height * 0.32;
+
+                // 中央を遮るレーザー柵を配置（全体の約60%幅をガードし、左右に迂回ルートを残す）
+                lasers = [
+                    {
+                        x1: canvas.width * 0.2,
+                        y1: canvas.height * 0.52,
+                        x2: canvas.width * 0.8,
+                        y2: canvas.height * 0.52,
+                        thickness: 8
+                    }
+                ];
 
                 bullets = []; 
                 rhythmNotes = []; 
@@ -399,7 +380,6 @@
 
                 frameCount = 0; 
                 initialBulletFired = false; 
-                gameFlashTimer = 0; 
                 startTime = performance.now();
 
                 visitorBulletDirection = visitors.map(() => {
@@ -410,7 +390,6 @@
                 joystickContainer.classList.remove('hidden');
             }
 
-            // --- 弾幕生成 (数と密度は同一、スピードのみ超遅い) ---
             function createInitialBullet() {
                 if (frameCount === 30 && !initialBulletFired) {
                     guards.forEach(guard => {
@@ -430,9 +409,10 @@
 
             function createGuardBulletPattern() {
                 if (frameCount % bulletInterval === 0) {
-                    const angleStep = (Math.PI * 2) / 10;
+                    const bulletCount = 7; 
+                    const angleStep = (Math.PI * 2) / bulletCount;
                     guards.forEach(guard => {
-                        for (let i = 0; i < 10; i++) {
+                        for (let i = 0; i < bulletCount; i++) {
                             const angle = i * angleStep;
                             bullets.push({
                                 x: guard.x, y: guard.y,
@@ -470,12 +450,29 @@
                 );
             }
 
+            // 弾との判定
             function checkCollision() {
                 for (const bullet of bullets) {
                     const dx = player.x - (bullet.x + bullet.width / 2);
                     const dy = player.y - (bullet.y + bullet.height / 2);
-                    if (Math.hypot(dx, dy) < (player.size / 2 + bullet.width / 2 - 2)) {
+                    if (Math.hypot(dx, dy) < (player.size / 3 + bullet.width / 4)) {
                         return true;
+                    }
+                }
+                return false;
+            }
+
+            // レーザー柵との当たり判定
+            function checkLaserCollision() {
+                for (const laser of lasers) {
+                    const minX = Math.min(laser.x1, laser.x2);
+                    const maxX = Math.max(laser.x1, laser.x2);
+
+                    // 水平レーザーの判定
+                    if (player.x + player.size / 3 >= minX && player.x - player.size / 3 <= maxX) {
+                        if (Math.abs(player.y - laser.y1) < player.size / 2 + laser.thickness / 2) {
+                            return true;
+                        }
                     }
                 }
                 return false;
@@ -609,13 +606,48 @@
                 ctx.stroke();
             }
 
+            // 赤外線レーザー柵の描画
+            function drawLasers() {
+                lasers.forEach(laser => {
+                    ctx.save();
+
+                    // 左右の接続ポスト
+                    ctx.fillStyle = '#475569';
+                    ctx.fillRect(laser.x1 - 8, laser.y1 - 10, 16, 20);
+                    ctx.fillRect(laser.x2 - 8, laser.y2 - 10, 16, 20);
+                    ctx.fillStyle = '#EF4444';
+                    ctx.fillRect(laser.x1 - 5, laser.y1 - 8, 10, 5);
+                    ctx.fillRect(laser.x2 - 5, laser.y2 - 8, 10, 5);
+
+                    // パルス発光のレーザー光線
+                    const pulse = Math.sin(frameCount * 0.1) * 4 + 8;
+                    ctx.shadowColor = '#EF4444';
+                    ctx.shadowBlur = pulse;
+                    ctx.strokeStyle = '#EF4444';
+                    ctx.lineWidth = laser.thickness;
+                    ctx.beginPath();
+                    ctx.moveTo(laser.x1, laser.y1);
+                    ctx.lineTo(laser.x2, laser.y2);
+                    ctx.stroke();
+
+                    // レーザー中心の白い光
+                    ctx.strokeStyle = '#FFFFFF';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(laser.x1, laser.y1);
+                    ctx.lineTo(laser.x2, laser.y2);
+                    ctx.stroke();
+
+                    ctx.restore();
+                });
+            }
+
             function drawBullets() {
                 bullets.forEach(bullet => {
                     ctx.fillStyle = '#EF4444'; 
                     ctx.strokeStyle = '#7F1D1D';
                     ctx.lineWidth = 1.5;
 
-                    // 赤い矢印を描画
                     const angle = Math.atan2(bullet.dy, bullet.dx);
                     ctx.save();
                     ctx.translate(bullet.x, bullet.y);
@@ -659,14 +691,12 @@
             }
 
             function drawRhythmGame() {
-                // 判定ゾーン
                 ctx.fillStyle = hitZoneColor;
                 ctx.fillRect(0, rhythmHitZoneY, canvas.width, hitZoneHeight);
                 ctx.strokeStyle = '#FACC15';
                 ctx.lineWidth = 3;
                 ctx.strokeRect(0, rhythmHitZoneY, canvas.width, hitZoneHeight);
 
-                // レーン区切り線
                 ctx.strokeStyle = 'rgba(255,255,255,0.2)';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
@@ -674,7 +704,6 @@
                 ctx.moveTo(canvas.width * 2 / 3, 0); ctx.lineTo(canvas.width * 2 / 3, canvas.height);
                 ctx.stroke();
 
-                // 降りてくるバナナノーツ
                 rhythmNotes.forEach(note => {
                     if (!note.hit) {
                         ctx.fillStyle = '#FACC15';
@@ -708,6 +737,10 @@
                         endGame(false, '警備員の弾幕に当たってしまった！');
                     }
 
+                    if (checkLaserCollision()) {
+                        endGame(false, '🚨 赤外線レーザー柵に触れて警報が鳴った！');
+                    }
+
                     if (checkBananaProximity()) {
                         gameState = 'rhythmIntro';
                         rhythmIntroContainer.classList.remove('hidden');
@@ -724,6 +757,7 @@
                     drawBanana();
                     drawVisitors();
                     drawGuards();
+                    drawLasers(); // レーザー柵の描画
                     drawPlayer();
                     drawBullets();
                     drawJoystick();
@@ -752,7 +786,6 @@
                 retryButton.classList.remove('hidden');
             }
 
-            // イベントバインド
             startButton.addEventListener('click', () => {
                 try { gameBGM.play(); } catch(e){}
                 gameIntro.classList.add('hidden');
