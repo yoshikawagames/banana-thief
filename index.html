@@ -3,171 +3,184 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>バナナを盗んで食え（iPad対応ジョイコン境界線）</title>
+    <title>バナナを盗んで食え（超スロー版）</title>
     <!-- Tailwind CSSを読み込み -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=M+PLUS+Rounded+1c:wght@700;900&display=swap');
+        
         body {
-            font-family: 'Press+Start+2P', cursive;
+            font-family: 'M PLUS Rounded 1c', 'Press Start 2P', sans-serif;
             background-color: #f0f0f0;
+            user-select: none;
+            -webkit-user-select: none;
         }
+
         canvas {
-            border: 2px solid #333;
-            /* 背景画像を元のものに戻します */
+            border: 3px solid #333;
             background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('https://raw.githubusercontent.com/yoshikawagames/banana-thief/main/%E3%83%90%E3%83%8A%E3%83%8A%E6%B3%A5%E6%A3%92%E8%83%8C%E6%99%AF%EF%BC%92.png'); 
             background-size: cover; 
             background-position: center; 
             background-repeat: no-repeat; 
-            /* 画像が読み込めない場合の代替色を濃い緑に設定 */
             background-color: #228B22; 
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
             max-width: 100%;
             display: block;
+            border-radius: 12px;
         }
+
         .pixel-art {
             image-rendering: pixelated;
-            image-rendering: -moz-crisp-edges;
             image-rendering: crisp-edges;
         }
+
         #game-title {
             font-size: 1.5rem;
         }
         @media (min-width: 768px) {
             #game-title {
-                font-size: 2.5rem;
+                font-size: 2.2rem;
             }
         }
+
         .btn-green {
             background: linear-gradient(180deg, #10B981 0%, #059669 100%);
             border: 2px solid #065F46;
             color: white;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 0 #065F46;
         }
+        .btn-green:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #065F46;
+        }
+
         .btn-red {
             background: linear-gradient(180deg, #EF4444 0%, #DC2626 100%);
             border: 2px solid #991B1B;
             color: white;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 0 #991B1B;
         }
+        .btn-red:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #991B1B;
+        }
+
         .rhythm-lane-btn {
-            padding: 2.5rem 4rem;
-            border-radius: 0.5rem;
-            font-size: 1.5rem; 
+            padding: 1.5rem 2.5rem;
+            border-radius: 0.75rem;
+            font-size: 1.8rem; 
             font-weight: bold;
             color: white;
-            transition: transform 0.2s;
+            transition: transform 0.1s;
             touch-action: none;
+            box-shadow: 0 4px 0 #B45309;
         }
         .rhythm-lane-btn:active {
-            transform: scale(0.95);
+            transform: scale(0.92);
+            box-shadow: none;
         }
+
         /* リズム判定メッセージのスタイル */
         #hit-grade-display {
             position: absolute;
-            top: 50%;
+            top: 40%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 3rem;
-            font-weight: bold;
-            color: white;
-            text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.7);
+            font-size: 2.8rem;
+            font-weight: 900;
+            color: #FACC15;
+            text-shadow: 3px 3px 0 #000, -2px -2px 0 #000;
             pointer-events: none; 
             opacity: 0;
-            transition: opacity 0.1s, transform 0.1s;
+            transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+            z-index: 20;
         }
+
         /* スコアリングメッセージのオーバーレイ */
         #game-message-overlay {
-            background-color: rgba(0, 0, 0, 0.6); 
+            background-color: rgba(0, 0, 0, 0.75); 
             border-radius: 0.75rem;
         }
         
-        /* --- 修正ポイント: ジョイスティックコンテナの表示設定 (iPad対応) --- */
+        /* ジョイスティックコンテナ (iPad/スマホ対応) */
         #joystick-container {
-            position: fixed; 
-            bottom: 20px; 
-            right: 20px; 
-            width: 170px; 
-            height: 170px; 
-            
-            /* 常に表示 (iPad/PC問わず) */
+            position: absolute; 
+            bottom: 15px; 
+            right: 15px; 
+            width: 130px; 
+            height: 130px; 
             display: block; 
-            
-            /* 赤い枠線 (デバッグ用) - 常に濃く表示 */
-            border: 2px dashed #EF4444; 
+            border: 2px dashed rgba(239, 68, 68, 0.6); 
             border-radius: 50%;
-            z-index: 10;
-            
-            /* PC/iPadの幅に関わらず、操作を受け付ける */
+            z-index: 15;
             pointer-events: auto; 
+            background: rgba(0, 0, 0, 0.15);
+            touch-action: none;
         }
-
-        /* 画面幅によるスタイル変更を削除し、iPadでも枠線が薄くならないようにしました */
-        /* --- 修正ポイント終了 --- */
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4 bg-gray-100">
-    <div class="flex flex-col items-center p-4 md:p-8 bg-gray-200 rounded-xl shadow-lg border-2 border-gray-300">
-        <h1 id="game-title" class="text-2xl md:text-4xl text-gray-800 font-extrabold mb-4 text-center">バナナを盗んで食え</h1>
+<body class="flex flex-col items-center justify-center min-h-screen p-2 md:p-4 bg-slate-800 text-slate-100">
+    <div class="flex flex-col items-center p-4 md:p-6 bg-slate-900 rounded-2xl shadow-2xl border-4 border-amber-500 max-w-xl w-full">
+        <h1 id="game-title" class="text-2xl md:text-3xl text-amber-400 font-extrabold mb-3 text-center tracking-wider" style="text-shadow: 2px 2px 0 #000">バナナを盗んで食え★超スロー</h1>
 
         <!-- ゲーム説明とタイトル画面 -->
-        <div id="game-intro" class="text-center text-gray-700 mb-4 transition-opacity duration-500">
-            <p class="mb-2">怪盗となり、美術館に展示されたバナナを盗み出せ！</p>
-            <p class="mb-4">監視員の鋭い視線（弾幕）をかわし、バナナにたどり着くのだ。</p>
+        <div id="game-intro" class="text-center text-gray-200 mb-4 transition-opacity duration-300">
+            <p class="mb-1 text-sm md:text-base">怪盗となり、美術館に展示されたバナナを盗み出せ！</p>
+            <p class="mb-3 text-xs md:text-sm text-amber-200">赤矢印の数はそのまま、スピードを極限まで遅くしました！</p>
 
             <div class="mb-4">
-                <label for="difficulty" class="text-gray-800 text-sm font-bold block mb-1">難易度選択:</label>
-                <select id="difficulty" class="p-2 border border-gray-400 rounded-md bg-white">
-                    <option value="easy">かんたん</option>
-                    <option value="normal" selected>ふつう</option>
+                <label for="difficulty" class="text-amber-300 text-sm font-bold block mb-1">難易度:</label>
+                <select id="difficulty" class="p-2 border-2 border-amber-500 rounded-lg bg-slate-800 text-amber-300 font-bold text-center">
+                    <option value="ultraslow">超スロー（激甘モード）</option>
                 </select>
             </div>
 
-            <button id="startButton" class="btn-green p-4 rounded-xl text-lg md:text-xl font-bold hover:scale-105 transform transition duration-200">怪盗開始！</button>
+            <button id="startButton" class="btn-green px-6 py-3 rounded-xl text-lg font-black hover:scale-105 transform transition">怪盗開始！</button>
         </div>
 
-        <!-- ゲームキャンバス -->
-        <div class="relative w-full h-[50vh] md:h-[70vh] flex justify-center items-center">
-            <canvas id="gameCanvas" class="w-full h-full rounded-xl pixel-art"></canvas>
+        <!-- ゲームキャンバスエリア -->
+        <div class="relative w-full flex justify-center items-center my-2">
+            <canvas id="gameCanvas" class="w-full h-auto rounded-xl pixel-art"></canvas>
 
             <!-- スコアリング画面（ゲームオーバー/勝利）のオーバーレイ -->
-            <p id="game-message-overlay" class="absolute inset-0 flex items-center justify-center text-center p-4 z-10 pointer-events-none text-white text-3xl md:text-4xl font-extrabold hidden" style="text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.9);"></p>
+            <div id="game-message-overlay" class="absolute inset-0 flex flex-col items-center justify-center text-center p-4 z-20 pointer-events-none text-white hidden">
+                <h2 id="overlay-title" class="text-3xl md:text-4xl font-black mb-2 text-amber-400" style="text-shadow: 3px 3px 0 #000;"></h2>
+                <p id="overlay-subtitle" class="text-lg md:text-xl font-bold"></p>
+            </div>
 
             <!-- リズムゲームの説明画面 -->
-            <div id="rhythm-intro-container" class="hidden absolute inset-0 flex flex-col items-center justify-center p-4">
-                <p class="text-white font-bold mb-4 text-center p-4 bg-gray-800 bg-opacity-70 rounded-lg">バナナを食べるには、上から降ってくるノートが下の黄色いゾーンに来たら、対応するボタンを素早くタップしよう！</p>
-                <div id="rhythm-intro-buttons" class="flex justify-around mt-4 w-1/2">
-                    <!-- 説明用のボタンは削除し、テキストに集中 -->
-                </div>
-                <button id="rhythmStartButton" class="btn-green mt-8 p-4 rounded-xl text-lg md:text-xl font-bold hover:scale-105 transform transition duration-200">いただきます！</button>
+            <div id="rhythm-intro-container" class="hidden absolute inset-0 flex flex-col items-center justify-center p-4 bg-slate-950/85 rounded-xl z-20">
+                <p class="text-amber-300 font-bold mb-4 text-center p-3 bg-slate-900 border border-amber-500 rounded-lg text-sm md:text-base">
+                    バナナに到達！<br>上から降ってくるノーツが下の黄色いゾーンに来たら、下の対応するボタンを押して召し上がれ！
+                </p>
+                <button id="rhythmStartButton" class="btn-green p-3 px-8 rounded-xl text-lg font-bold hover:scale-105 transition">いただきます！</button>
             </div>
 
             <!-- リズムゲームの判定表示エリア -->
-            <div id="hit-grade-display"></div>
+            <div id="hit-grade-display">PERFECT!</div>
+
+            <!-- ジョイスティックコンテナ (モバイル/iPad対応) -->
+            <div id="joystick-container" class="hidden"></div>
         </div>
 
-        <!-- ジョイスティックコンテナ (モバイル対応) -->
-        <div id="joystick-container"></div>
-
-
         <!-- ゲーム中のUI要素 -->
-        <div id="game-ui" class="mt-4 hidden w-full text-center">
-
+        <div id="game-ui" class="mt-3 hidden w-full text-center">
             <!-- 勝利条件: バナナを食べるボタン -->
             <div id="eat-banana-container" class="hidden flex flex-col items-center">
-                <!-- リズムゲームのライフ表示を追加 -->
-                <p id="eat-count-display" class="text-lg mb-2 text-gray-700">食べたバナナ... 0/10</p>
-                <p id="rhythm-life-display" class="text-lg mb-2 text-red-600 font-bold hidden"></p>
+                <p id="eat-count-display" class="text-base md:text-lg mb-2 text-amber-300 font-bold">食べたバナナ... 0/10</p>
+                <p id="rhythm-life-display" class="text-sm mb-2 text-red-400 font-bold"></p>
 
-                <div id="rhythm-game-container" class="mt-4">
-                    <button id="laneButtonLeft" class="rhythm-lane-btn bg-yellow-500 hover:bg-yellow-600 focus:bg-yellow-700">←</button>
-                    <button id="laneButtonCenter" class="rhythm-lane-btn bg-yellow-500 hover:bg-yellow-600 focus:bg-yellow-700">・</button>
-                    <button id="laneButtonRight" class="rhythm-lane-btn bg-yellow-500 hover:bg-yellow-600 focus:bg-yellow-700">→</button>
+                <div id="rhythm-game-container" class="flex justify-center gap-3 mt-1">
+                    <button id="laneButtonLeft" class="rhythm-lane-btn bg-amber-500 hover:bg-amber-600 focus:bg-amber-700">←</button>
+                    <button id="laneButtonCenter" class="rhythm-lane-btn bg-amber-500 hover:bg-amber-600 focus:bg-amber-700">・</button>
+                    <button id="laneButtonRight" class="rhythm-lane-btn bg-amber-500 hover:bg-amber-600 focus:bg-amber-700">→</button>
                 </div>
             </div>
 
-            <!-- ゲームオーバー/クリア後のボタン -->
-            <button id="retryButton" class="btn-red p-4 rounded-xl text-lg md:text-xl font-bold hover:scale-105 transform transition duration-200 hidden">リトライ</button>
+            <!-- リトライボタン -->
+            <button id="retryButton" class="btn-red px-6 py-3 mt-3 rounded-xl text-lg font-bold hover:scale-105 transition hidden">もう一度挑戦</button>
         </div>
     </div>
 
@@ -182,54 +195,46 @@
             const gameIntro = document.getElementById('game-intro');
             const gameUI = document.getElementById('game-ui');
             const gameMessageOverlay = document.getElementById('game-message-overlay'); 
+            const overlayTitle = document.getElementById('overlay-title');
+            const overlaySubtitle = document.getElementById('overlay-subtitle');
             const eatBananaContainer = document.getElementById('eat-banana-container');
             const eatCountDisplay = document.getElementById('eat-count-display');
-            const difficultySelect = document.getElementById('difficulty');
             const rhythmIntroContainer = document.getElementById('rhythm-intro-container');
             const rhythmStartButton = document.getElementById('rhythmStartButton');
             const rhythmLifeDisplay = document.getElementById('rhythm-life-display');
             const hitGradeDisplay = document.getElementById('hit-grade-display'); 
             const joystickContainer = document.getElementById('joystick-container'); 
 
-            // リズムゲームのレーンボタンを取得
             const laneButtonLeft = document.getElementById('laneButtonLeft');
             const laneButtonCenter = document.getElementById('laneButtonCenter');
             const laneButtonRight = document.getElementById('laneButtonRight');
 
             // 入力状態
             let keys = {};
-            // ジョイスティック変数
             let joystick = {
                 active: false,
-                joystickCenterScreenX: 0, // コンテナの中心座標 (画面全体座標系)
-                joystickCenterScreenY: 0, // コンテナの中心座標 (画面全体座標系)
                 deltaX: 0, 
                 deltaY: 0,
-                radius: 60, 
-                innerRadius: 25 
+                radius: 45, 
+                innerRadius: 20 
             };
             const JOYSTICK_DEADZONE = 5; 
-            
-            // X軸の補正値は維持 (-20pxで左右の速度差を解消)
-            const JOYSTICK_INPUT_CORRECTION_X = -20; 
-            // Y軸の補正値はCSS変更に伴い、20pxで微調整
-            const JOYSTICK_INPUT_CORRECTION_Y = 20; 
 
             let animationFrameId;
             let startTime;
             let endTime;
 
-            // グローバルなゲーム設定
+            // ゲーム状態: 'title', 'playing', 'rhythmIntro', 'rhythmPlaying', 'gameOver', 'cleared'
             let gameState = 'title'; 
-            let player = { x: 0, y: 0, size: 20, speed: 5 };
+            let player = { x: 0, y: 0, size: 22, speed: 5 };
 
-            // BGM関連の変数
-            let gameBGM;
-            const BGM_URL = 'https://raw.githubusercontent.com/yoshikawagames/banana-thief/main/bananasong.mp3'; 
-            let bgmReady = false; 
+            // BGM関連
+            let gameBGM = new Audio('https://raw.githubusercontent.com/yoshikawagames/banana-thief/main/bananasong.mp3');
+            gameBGM.loop = true;
 
-            const banana = { x: 0, y: 0, width: 30, height: 60 };
-            const eatMax = 10; // ノートの数を10個に戻します
+            const banana = { x: 0, y: 0, width: 32, height: 64 };
+            const eatMax = 10; 
+            let eatenCount = 0;
 
             const guards = [
                 { x: 0, y: 0, size: 30, color: '#3B82F6' },
@@ -241,13 +246,14 @@
                 { x: 0, y: 0, size: 20, color: '#9CA3AF' }
             ];
             let bullets = []; 
-            // 弾速の初期値
-            let bulletSpeed = 2.0; 
-            let bulletInterval = 50; 
+            
+            // ★ 超スロースピードの設定 (本来の2.0/1.5から0.4へ劇的ダウン！) ★
+            let bulletSpeed = 0.4; 
+            let bulletInterval = 50; // 発射数はそのまま
             let visitorBulletInterval = 120;
             let visitorBulletDirection = []; 
             let frameCount = 0;
-            const bulletSize = 10;
+            const bulletSize = 12;
             let initialBulletFired = false;
 
             let gameFlashTimer = 0; 
@@ -258,60 +264,49 @@
 
             const hitZoneHeight = 50;
             let rhythmHitZoneY; 
-            const hitZoneColor = 'rgba(255, 204, 0, 0.5)';
+            const hitZoneColor = 'rgba(250, 204, 21, 0.4)';
             const rhythmLanes = ['left', 'center', 'right'];
-            let rhythmScore = 0;
             let rhythmGameMisses = 0;
             const rhythmMaxMisses = 3; 
 
             // 判定表示用
-            let lastHitGrade = '';
             let hitGradeTimer = 0;
 
-            // キャンバスの縦横比を設定
             function resizeCanvas() {
-                const maxWidth = window.innerWidth > 768 ? 800 : window.innerWidth * 0.9;
+                const maxWidth = Math.min(window.innerWidth * 0.9, 500);
                 canvas.width = maxWidth;
-                canvas.height = maxWidth * 1.0; 
-                rhythmHitZoneY = canvas.height - 150; 
+                canvas.height = maxWidth * 1.1; 
+                rhythmHitZoneY = canvas.height - 120; 
             }
             window.addEventListener('resize', resizeCanvas);
             resizeCanvas();
 
-            // プレイヤーの移動処理（モバイル/キーボード対応）
+            // プレイヤーの移動処理
             function movePlayer() {
                 let dx = 0;
                 let dy = 0;
 
-                // 1. キーボード入力 (PC向け)
                 if (keys['arrowup'] || keys['w']) dy -= 1;
                 if (keys['arrowdown'] || keys['s']) dy += 1;
                 if (keys['arrowleft'] || keys['a']) dx -= 1;
                 if (keys['arrowright'] || keys['d']) dx += 1;
 
-                // 2. ジョイスティック入力 (モバイル向け)
                 if (joystick.active) {
-                    // deltaX/Yを使用
                     const diffX = joystick.deltaX;
                     const diffY = joystick.deltaY;
-                    let distance = Math.sqrt(diffX * diffX + diffY * diffY);
+                    let distance = Math.hypot(diffX, diffY);
 
-                    // デッドゾーンと速度スケーリングの導入
                     if (distance > JOYSTICK_DEADZONE) {
                         const displacementRatio = (distance - JOYSTICK_DEADZONE) / (joystick.radius - JOYSTICK_DEADZONE);
                         const scaledRatio = Math.min(1, Math.max(0, displacementRatio)); 
 
-                        const directionX = diffX / distance;
-                        const directionY = diffY / distance;
-
-                        dx += directionX * scaledRatio;
-                        dy += directionY * scaledRatio;
+                        dx += (diffX / distance) * scaledRatio;
+                        dy += (diffY / distance) * scaledRatio;
                     }
                 }
 
-                // 移動の適用
                 if (dx !== 0 || dy !== 0) {
-                    const length = Math.sqrt(dx * dx + dy * dy);
+                    const length = Math.hypot(dx, dy);
                     if (length > 1) { 
                         dx /= length;
                         dy /= length;
@@ -320,247 +315,122 @@
                     player.y += dy * player.speed;
                 }
 
-                // 画面端の境界チェック
                 player.x = Math.max(player.size / 2, Math.min(canvas.width - player.size / 2, player.x));
                 player.y = Math.max(player.size / 2, Math.min(canvas.height - player.size / 2, player.y));
             }
 
-            // ゲームの初期状態を設定
-            function initGame() {
-                const difficulty = difficultySelect.value;
+            // ジョイスティックタッチコントロール
+            function setupJoystickEvents() {
+                const handleTouch = (e) => {
+                    if (gameState !== 'playing') return;
+                    const rect = joystickContainer.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
 
-                // ユーザーが設定した弾速を適用
-                if (difficulty === 'easy') {
-                    // かんたん: 1.5
-                    bulletSpeed = 1.5; 
-                    bulletInterval = 60; 
-                    visitorBulletInterval = 150; 
-                    player.speed = 6;
-                } else if (difficulty === 'normal') {
-                    // ふつう: 2.0
-                    bulletSpeed = 2.0; 
-                    bulletInterval = 40; 
-                    visitorBulletInterval = 100; 
-                    player.speed = 5;
+                    const touch = e.touches ? e.touches[0] : e;
+                    let dx = touch.clientX - centerX;
+                    let dy = touch.clientY - centerY;
+
+                    const dist = Math.hypot(dx, dy);
+                    if (dist > joystick.radius) {
+                        dx = (dx / dist) * joystick.radius;
+                        dy = (dy / dist) * joystick.radius;
+                    }
+
+                    joystick.active = true;
+                    joystick.deltaX = dx;
+                    joystick.deltaY = dy;
+                };
+
+                const handleEnd = () => {
+                    joystick.active = false;
+                    joystick.deltaX = 0;
+                    joystick.deltaY = 0;
+                };
+
+                joystickContainer.addEventListener('touchstart', (e) => { e.preventDefault(); handleTouch(e); });
+                joystickContainer.addEventListener('touchmove', (e) => { e.preventDefault(); handleTouch(e); });
+                joystickContainer.addEventListener('touchend', handleEnd);
+                joystickContainer.addEventListener('touchcancel', handleEnd);
+
+                joystickContainer.addEventListener('mousedown', handleTouch);
+                window.addEventListener('mousemove', (e) => { if (joystick.active) handleTouch(e); });
+                window.addEventListener('mouseup', handleEnd);
+            }
+            setupJoystickEvents();
+
+            // キーボード操作リスナー
+            window.addEventListener('keydown', (e) => {
+                keys[e.key.toLowerCase()] = true;
+                if (gameState === 'rhythmPlaying') {
+                    if (e.key === 'ArrowLeft' || e.key === 'a') handleRhythmInput('left');
+                    if (e.key === 'ArrowDown' || e.key === 's' || e.key === ' ') handleRhythmInput('center');
+                    if (e.key === 'ArrowRight' || e.key === 'd') handleRhythmInput('right');
                 }
+            });
+            window.addEventListener('keyup', (e) => {
+                keys[e.key.toLowerCase()] = false;
+            });
+
+            function initGame() {
+                // スピードは「超スロー(0.4)」に固定！
+                bulletSpeed = 0.4; 
+                bulletInterval = 50; 
+                visitorBulletInterval = 120; 
+                player.speed = 5;
 
                 player.x = canvas.width / 2;
                 player.y = canvas.height - 50;
 
                 banana.x = canvas.width / 2 - banana.width / 2;
-                banana.y = 50;
+                banana.y = 40;
 
-                guards[0].x = canvas.width / 4; guards[0].y = 100;
-                guards[1].x = canvas.width * 3 / 4; guards[1].y = 100;
+                guards[0].x = canvas.width / 4; guards[0].y = 90;
+                guards[1].x = canvas.width * 3 / 4; guards[1].y = 90;
 
-                visitors[0].x = canvas.width / 8; visitors[0].y = canvas.height / 2;
-                visitors[1].x = canvas.width / 2; visitors[1].y = canvas.height / 2.5;
-                visitors[2].x = canvas.width * 7 / 8; visitors[2].y = canvas.height / 2;
+                visitors[0].x = canvas.width / 6; visitors[0].y = canvas.height / 2;
+                visitors[1].x = canvas.width / 2; visitors[1].y = canvas.height / 2.3;
+                visitors[2].x = canvas.width * 5 / 6; visitors[2].y = canvas.height / 2;
 
-                bullets = []; rhythmNotes = []; 
-                rhythmScore = 0; rhythmGameMisses = 0; 
+                bullets = []; 
+                rhythmNotes = []; 
+                eatenCount = 0;
+                rhythmGameMisses = 0; 
 
-                frameCount = 0; initialBulletFired = false; gameFlashTimer = 0; 
+                frameCount = 0; 
+                initialBulletFired = false; 
+                gameFlashTimer = 0; 
                 startTime = performance.now();
 
                 visitorBulletDirection = visitors.map(() => {
                     const angle = Math.random() * Math.PI * 2;
                     return { dx: Math.cos(angle), dy: Math.sin(angle) };
                 });
+
+                joystickContainer.classList.remove('hidden');
             }
 
-            // --- 描画関数群 ---
-
-            // --- ジョイスティック描画 ---
-            function drawJoystick() {
-                // PC環境でも表示されるようにCSSを修正しましたが、
-                // ジョイスティックの「ノブ」自体はモバイル環境でのみ描画します。
-                const isMobile = window.innerWidth <= 1024; // (一般的なモバイル判定)
-
-                // ゲームがプレイ中でない、かつモバイルではない場合は描画をスキップ
-                // iPadで幅が1024pxを超えていても、タッチ操作を意図する場合は active が true になります
-                if (gameState !== 'playing' || (!isMobile && !joystick.active)) {
-                    joystick.active = false;
-                    return; 
-                }
-
-                const containerRect = joystickContainer.getBoundingClientRect();
-                const canvasRect = canvas.getBoundingClientRect();
-
-                // Canvasの内部描画解像度とCSS表示サイズの比率を計算 (スケールファクター)
-                const scaleFactorX = canvas.width / canvasRect.width;
-                const scaleFactorY = canvas.height / canvasRect.height;
-                // アスペクト比が保たれているため、X方向のスケールを使用します。
-                const scaleFactor = scaleFactorX; 
-
-                // 描画基準位置の計算 (Canvas内部描画座標)
-                const baseCenterX_CSS = (containerRect.left + containerRect.width / 2) - canvasRect.left; 
-                const baseCenterY_CSS = (containerRect.top + containerRect.height / 2) - canvasRect.top;
-
-                // Canvas内部描画座標にスケーリング
-                const fixedBaseCenterX = baseCenterX_CSS * scaleFactor;
-                const fixedBaseCenterY = baseCenterY_CSS * scaleFactor;
-
-                let knobX, knobY;
-
-                // ノブの位置 (Canvas内部描画座標)
-                if (joystick.active) {
-                    // deltaX/YはCSSピクセルなので、スケールを適用してCanvas座標にする
-                    knobX = fixedBaseCenterX + joystick.deltaX * scaleFactor;
-                    knobY = fixedBaseCenterY + joystick.deltaY * scaleFactor;
-                } else {
-                    // Inactive時 (静止): ベースの中心にノブを描画
-                    knobX = fixedBaseCenterX;
-                    knobY = fixedBaseCenterY;
-                }
-
-                // 1. 外側の円（ベース）を描画 (半径にもスケールを適用)
-                ctx.beginPath();
-                ctx.arc(fixedBaseCenterX, fixedBaseCenterY, joystick.radius * scaleFactor, 0, Math.PI * 2, true);
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'; 
-                ctx.fill();
-
-                // 2. 内側の円（ノブ）を描画 (半径にもスケールを適用)
-                ctx.beginPath();
-                ctx.arc(knobX, knobY, joystick.innerRadius * scaleFactor, 0, Math.PI * 2, true);
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'; 
-                ctx.fill();
-            }
-
-            function drawPlayer() {
-                const s = player.size / 4; 
-                const x = player.x - player.size / 2;
-                const y = player.y - player.size / 2;
-
-                ctx.strokeStyle = '#FFFFFF'; 
-                ctx.lineWidth = 2; 
-                ctx.strokeRect(x - 1, y - 1, player.size + 2, player.size + 2);
-
-                ctx.fillStyle = '#000000'; 
-                ctx.fillRect(x, y, s * 4, s * 2);
-                ctx.fillRect(x + s, y + s * 2, s * 2, s);
-                ctx.fillStyle = '#C0C0C0'; 
-                ctx.fillRect(x + s, y + s * 3, s * 2, s);
-
-                ctx.fillStyle = '#333333'; 
-                ctx.fillRect(x + s, y + s * 4, s * 2, s * 3);
-                ctx.fillRect(x, y + s * 5, s, s);
-                ctx.fillRect(x + s * 3, y + s * 5, s, s);
-            }
-            function drawGuards() {
-                guards.forEach(guard => {
-                    const s = guard.size / 4;
-                    const x = guard.x - guard.size / 2;
-                    const y = guard.y - guard.size / 2;
-
-                    ctx.strokeStyle = '#FFFFFF'; 
-                    ctx.lineWidth = 2; 
-                    ctx.strokeRect(x - 1, y - 1, guard.size + 2, guard.size + 2);
-
-                    ctx.fillStyle = '#0000FF'; 
-                    ctx.fillRect(x, y, s * 4, s * 2);
-
-                    ctx.fillStyle = '#E6E6E6';
-                    ctx.fillRect(x + s, y + s * 2, s * 2, s * 2);
-
-                    ctx.fillStyle = '#0000FF'; 
-                    ctx.fillRect(x, y + s * 4, s * 4, s * 3);
-                });
-            }
-            function drawVisitors() {
-                visitors.forEach(visitor => {
-                    const s = visitor.size / 4;
-                    const x = visitor.x - visitor.size / 2;
-                    const y = visitor.y - visitor.size / 2;
-
-                    ctx.strokeStyle = '#FFFFFF'; 
-                    ctx.lineWidth = 2; 
-                    ctx.strokeRect(x - 1, y - 1, visitor.size + 2, visitor.size + 2);
-
-                    ctx.fillStyle = visitor.color;
-                    ctx.fillRect(x, y + s * 3, s * 4, s * 4);
-
-                    ctx.fillStyle = '#F08080';
-                    ctx.fillRect(x + s, y, s * 2, s * 2);
-                });
-            }
-            function drawBanana() {
-                const x = banana.x;
-                const y = banana.y;
-                const w = banana.width;
-                const h = banana.height;
-
-                ctx.fillStyle = '#A8A29E'; 
-                ctx.fillRect(x, y, w, h / 10);
-
-                ctx.fillStyle = '#FDE047'; 
-                ctx.fillRect(x + w / 4, y + h / 10, w / 2, h * 0.9);
-                ctx.fillRect(x + w * 0.2, y + h * 0.3, w * 0.6, h * 0.4);
-
-                ctx.fillStyle = '#EAB308'; 
-                ctx.fillRect(x + w * 0.5, y + h * 0.2, w * 0.1, h * 0.7);
-            }
-            function drawBullets() {
-                bullets.forEach(bullet => {
-                    ctx.strokeStyle = '#000000'; 
-                    ctx.lineWidth = 2; 
-
-                    ctx.fillStyle = '#EF4444'; 
-                    ctx.beginPath();
-                    ctx.moveTo(bullet.x, bullet.y);
-                    ctx.lineTo(bullet.x + bullet.width, bullet.y + bullet.height / 2);
-                    ctx.lineTo(bullet.x, bullet.y + bullet.height);
-                    ctx.closePath(); 
-                    ctx.fill();
-                    ctx.stroke(); 
-                });
-            }
+            // --- 弾幕生成 (数と密度は同一、スピードのみ超遅い) ---
             function createInitialBullet() {
                 if (frameCount === 30 && !initialBulletFired) {
-                    const dx1 = player.x - guards[0].x;
-                    const dy1 = player.y - guards[0].y;
-                    const angle1 = Math.atan2(dy1, dx1);
-                    bullets.push({
-                        x: guards[0].x, y: guards[0].y,
-                        dx: Math.cos(angle1) * bulletSpeed * 1.5,
-                        dy: Math.sin(angle1) * bulletSpeed * 1.5,
-                        width: bulletSize, height: bulletSize
-                    });
-
-                    const dx2 = player.x - guards[1].x;
-                    const dy2 = player.y - guards[1].y;
-                    const angle2 = Math.atan2(dy2, dx2);
-                    bullets.push({
-                        x: guards[1].x, y: guards[1].y,
-                        dx: Math.cos(angle2) * bulletSpeed * 1.5,
-                        dy: Math.sin(angle2) * bulletSpeed * 1.5,
-                        width: bulletSize, height: bulletSize
+                    guards.forEach(guard => {
+                        const dx = player.x - guard.x;
+                        const dy = player.y - guard.y;
+                        const angle = Math.atan2(dy, dx);
+                        bullets.push({
+                            x: guard.x, y: guard.y,
+                            dx: Math.cos(angle) * bulletSpeed * 1.5,
+                            dy: Math.sin(angle) * bulletSpeed * 1.5,
+                            width: bulletSize, height: bulletSize
+                        });
                     });
                     initialBulletFired = true;
                 }
             }
 
             function createGuardBulletPattern() {
-                const difficulty = difficultySelect.value;
-                if (difficulty === 'normal') {
-                    if (frameCount % (bulletInterval * 2) === 0) {
-                        const angle = Math.PI * 0.5;
-                        const spread = 0.2;
-                        guards.forEach(guard => {
-                            for(let i = -1; i <= 1; i++) {
-                                const bulletAngle = angle + (i * spread);
-                                bullets.push({
-                                    x: guard.x, y: guard.y,
-                                    dx: Math.cos(bulletAngle) * bulletSpeed * 1.5,
-                                    dy: Math.sin(bulletAngle) * bulletSpeed * 1.5,
-                                    width: bulletSize, height: bulletSize
-                                });
-                            }
-                        });
-                    }
-                }
                 if (frameCount % bulletInterval === 0) {
-                    const angleStep = Math.PI * 2 / 10;
+                    const angleStep = (Math.PI * 2) / 10;
                     guards.forEach(guard => {
                         for (let i = 0; i < 10; i++) {
                             const angle = i * angleStep;
@@ -578,12 +448,11 @@
             function createVisitorBulletPattern() {
                 if (frameCount % visitorBulletInterval === 0) {
                     visitors.forEach((visitor, index) => {
-                        const dx = visitorBulletDirection[index].dx * bulletSpeed * 1.2;
-                        const dy = visitorBulletDirection[index].dy * bulletSpeed * 1.2;
-
+                        const dir = visitorBulletDirection[index];
                         bullets.push({
                             x: visitor.x, y: visitor.y,
-                            dx: dx, dy: dy,
+                            dx: dir.dx * bulletSpeed * 1.2,
+                            dy: dir.dy * bulletSpeed * 1.2,
                             width: bulletSize, height: bulletSize
                         });
                     });
@@ -595,9 +464,9 @@
                     bullet.x += bullet.dx;
                     bullet.y += bullet.dy;
                 });
-                bullets = bullets.filter(bullet =>
-                    bullet.x > -bulletSize && bullet.x < canvas.width + bulletSize &&
-                    bullet.y > -bulletSize && bullet.y < canvas.height + bulletSize
+                bullets = bullets.filter(b => 
+                    b.x > -20 && b.x < canvas.width + 20 &&
+                    b.y > -20 && b.y < canvas.height + 20
                 );
             }
 
@@ -605,8 +474,7 @@
                 for (const bullet of bullets) {
                     const dx = player.x - (bullet.x + bullet.width / 2);
                     const dy = player.y - (bullet.y + bullet.height / 2);
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    if (distance < player.size / 2 + bullet.width / 2) {
+                    if (Math.hypot(dx, dy) < (player.size / 2 + bullet.width / 2 - 2)) {
                         return true;
                     }
                 }
@@ -616,436 +484,305 @@
             function checkBananaProximity() {
                 const dx = player.x - (banana.x + banana.width / 2);
                 const dy = player.y - (banana.y + banana.height / 2);
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                return distance < player.size + 20;
-            }
-
-            function moveRhythmNotes() {
-                const noteSpeed = RHYTHM_NOTE_SPEED; 
-
-                rhythmNotes.forEach(note => {
-                    note.y += noteSpeed;
-                });
-
-                let notesPassed = false;
-                rhythmNotes = rhythmNotes.filter(note => {
-                    // ノートが判定ゾーンを大きく通り過ぎたらミス（ゲームオーバー）
-                    if (note.y > rhythmHitZoneY + hitZoneHeight + 20) { 
-                        notesPassed = true;
-                        return false;
-                    }
-                    return true;
-                });
-
-                if (notesPassed) {
-                    rhythmGameMisses++;
-                    gameFlashTimer = 15; 
-                    lastHitGrade = 'MISS';
-                    hitGradeTimer = 45;
-
-                    // 1つでもミスしたらゲームオーバー (イージーモード除く)
-                    if (difficultySelect.value === 'normal' || rhythmGameMisses >= rhythmMaxMisses) {
-                         gameState = 'gameOver';
-                         endTime = performance.now();
-                    }
-                }
-            }
-
-            function drawRhythmGame() {
-                ctx.fillStyle = hitZoneColor;
-                ctx.fillRect(0, rhythmHitZoneY, canvas.width, hitZoneHeight);
-                ctx.fillStyle = '#6D28D9';
-                rhythmNotes.forEach(note => {
-                    ctx.fillRect(note.x - note.size / 2, note.y - note.size / 2, note.size, note.size);
-                });
+                return Math.hypot(dx, dy) < player.size + 15;
             }
 
             function generateRhythmNotes() {
                 rhythmNotes = []; 
-                const noteCount = eatMax; // 10回タップ成功でクリア
-                const noteSpacing = 80; // ノート間の垂直間隔を80pxに設定（落下速度と合わせて調整）
+                const noteSpacing = 90; 
                 const totalLanes = rhythmLanes.length;
 
-                for (let i = 0; i < noteCount; i++) {
+                for (let i = 0; i < eatMax; i++) {
                     const laneIndex = Math.floor(Math.random() * totalLanes);
                     rhythmNotes.push({
                         x: (canvas.width / totalLanes) * (laneIndex + 0.5),
-                        // 画面外の上部から、一定の間隔で配置
-                        y: -100 - (i * noteSpacing), // -100pxから開始し、80pxずつ離す
-                        size: 30,
-                        lane: rhythmLanes[laneIndex]
+                        y: -100 - (i * noteSpacing),
+                        size: 32,
+                        lane: rhythmLanes[laneIndex],
+                        hit: false
                     });
                 }
-                // ノートが古いものから処理されるように、Y座標が最も低い（画面上端外にある）ものからソート
-                rhythmNotes.sort((a, b) => a.y - b.y);
             }
 
-            // リズムゲームの初期化
-            function initRhythmGame() { 
-                rhythmNotes = []; 
-                rhythmGameMisses = 0; 
-                rhythmScore = 0;
-                generateRhythmNotes(); // ノートを事前に10個生成
-            }
+            function moveRhythmNotes() {
+                rhythmNotes.forEach(note => {
+                    note.y += RHYTHM_NOTE_SPEED;
+                });
 
-            function handleRhythmTap(lane) {
-                if (gameState !== 'rhythmGame') return;
-
-                let hit = false;
-                let bestHitDistance = Infinity;
-                let hitIndex = -1;
-
-                const hitMargin = 30; 
-                const perfectRange = 15; 
-
-                // 一番手前のノートをチェック（y座標が最大のもの）
-                for (let i = rhythmNotes.length - 1; i >= 0; i--) {
-                    const note = rhythmNotes[i];
-                    const noteCenterY = note.y;
-                    const hitZoneCenterY = rhythmHitZoneY + hitZoneHeight / 2;
-                    const distance = Math.abs(noteCenterY - hitZoneCenterY);
-
-                    // 判定ゾーンの近くにある、かつレーンが一致するノートを探す
-                    if (note.lane === lane && 
-                        note.y > rhythmHitZoneY - hitMargin && 
-                        note.y < rhythmHitZoneY + hitZoneHeight + hitMargin) {
-
-                         // 最初に見つかったノートが最良の候補
-                         bestHitDistance = distance;
-                         hitIndex = i;
-                         break; // 最初の有効なノートを見つけたらループを抜ける
+                let missed = false;
+                rhythmNotes = rhythmNotes.filter(note => {
+                    if (!note.hit && note.y > rhythmHitZoneY + hitZoneHeight + 15) {
+                        missed = true;
+                        return false;
                     }
-                }
+                    return !note.hit;
+                });
 
-                if (hitIndex !== -1) {
-                    // ノートがヒットした場合
-                    rhythmNotes.splice(hitIndex, 1); // ノートを削除
-                    rhythmScore++;
-
-                    if (bestHitDistance <= perfectRange) {
-                        lastHitGrade = 'PERFECT!';
-                    } else {
-                        lastHitGrade = 'GOOD!';
-                    }
-                    hitGradeTimer = 45; 
-
-                    if (rhythmScore >= eatMax) {
-                        gameState = 'win'; 
-                        endTime = performance.now();
-                    }
-                } else {
-                    // ノートがない、またはタイミングが合わなかった場合
-                    lastHitGrade = 'MISS';
-                    hitGradeTimer = 45;
-                    gameFlashTimer = 15; 
+                if (missed) {
                     rhythmGameMisses++;
-
-                    if (difficultySelect.value === 'normal' || rhythmGameMisses >= rhythmMaxMisses) {
-                        gameState = 'gameOver';
-                        endTime = performance.now();
+                    showGrade('MISS');
+                    rhythmLifeDisplay.innerText = `ミス: ${rhythmGameMisses}/${rhythmMaxMisses}`;
+                    if (rhythmGameMisses >= rhythmMaxMisses) {
+                        endGame(false, 'バナナを落としてしまった！');
                     }
+                }
+
+                if (eatenCount >= eatMax) {
+                    endGame(true, 'バナナを完食！ミッション成功！');
                 }
             }
 
+            function handleRhythmInput(lane) {
+                if (gameState !== 'rhythmPlaying') return;
 
-            // ゲームループ
-            function gameLoop() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height); 
+                const targetNote = rhythmNotes.find(note => 
+                    note.lane === lane && 
+                    !note.hit && 
+                    Math.abs(note.y - (rhythmHitZoneY + hitZoneHeight / 2)) < hitZoneHeight * 1.2
+                );
+
+                if (targetNote) {
+                    targetNote.hit = true;
+                    eatenCount++;
+                    eatCountDisplay.innerText = `食べたバナナ... ${eatenCount}/${eatMax}`;
+                    showGrade('PERFECT!');
+                } else {
+                    showGrade('BAD');
+                }
+            }
+
+            function showGrade(text) {
+                hitGradeDisplay.innerText = text;
+                hitGradeDisplay.style.opacity = '1';
+                hitGradeDisplay.style.transform = 'translate(-50%, -50%) scale(1.2)';
+                hitGradeTimer = 30;
+            }
+
+            function drawPlayer() {
+                const s = player.size / 4; 
+                const x = player.x - player.size / 2;
+                const y = player.y - player.size / 2;
+
+                ctx.strokeStyle = '#FFFFFF'; 
+                ctx.lineWidth = 2; 
+                ctx.strokeRect(x - 1, y - 1, player.size + 2, player.size + 2);
+
+                ctx.fillStyle = '#1E293B'; 
+                ctx.fillRect(x, y, s * 4, s * 2);
+                ctx.fillStyle = '#CBD5E1'; 
+                ctx.fillRect(x + s, y + s * 2, s * 2, s * 2);
+
+                ctx.fillStyle = '#0F172A'; 
+                ctx.fillRect(x + s, y + s * 4, s * 2, s * 3);
+            }
+
+            function drawGuards() {
+                guards.forEach(guard => {
+                    const x = guard.x - guard.size / 2;
+                    const y = guard.y - guard.size / 2;
+
+                    ctx.fillStyle = guard.color;
+                    ctx.fillRect(x, y, guard.size, guard.size);
+                    ctx.strokeStyle = '#FFFFFF';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x, y, guard.size, guard.size);
+                });
+            }
+
+            function drawVisitors() {
+                visitors.forEach(visitor => {
+                    const x = visitor.x - visitor.size / 2;
+                    const y = visitor.y - visitor.size / 2;
+
+                    ctx.fillStyle = visitor.color;
+                    ctx.fillRect(x, y, visitor.size, visitor.size);
+                });
+            }
+
+            function drawBanana() {
+                ctx.fillStyle = '#FACC15'; 
+                ctx.beginPath();
+                ctx.ellipse(banana.x + banana.width / 2, banana.y + banana.height / 2, banana.width / 2, banana.height / 2, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#CA8A04';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            function drawBullets() {
+                bullets.forEach(bullet => {
+                    ctx.fillStyle = '#EF4444'; 
+                    ctx.strokeStyle = '#7F1D1D';
+                    ctx.lineWidth = 1.5;
+
+                    // 赤い矢印を描画
+                    const angle = Math.atan2(bullet.dy, bullet.dx);
+                    ctx.save();
+                    ctx.translate(bullet.x, bullet.y);
+                    ctx.rotate(angle);
+
+                    ctx.beginPath();
+                    ctx.moveTo(bullet.width, 0);
+                    ctx.lineTo(-bullet.width / 2, -bullet.height / 2);
+                    ctx.lineTo(-bullet.width / 4, 0);
+                    ctx.lineTo(-bullet.width / 2, bullet.height / 2);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.restore();
+                });
+            }
+
+            function drawJoystick() {
+                if (!joystickContainer.classList.contains('hidden')) {
+                    const rect = joystickContainer.getBoundingClientRect();
+                    const canvasRect = canvas.getBoundingClientRect();
+
+                    const scale = canvas.width / canvasRect.width;
+                    const cx = (rect.left + rect.width / 2 - canvasRect.left) * scale;
+                    const cy = (rect.top + rect.height / 2 - canvasRect.top) * scale;
+
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, joystick.radius * scale, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                    ctx.fill();
+
+                    const kx = cx + joystick.deltaX * scale;
+                    const ky = cy + joystick.deltaY * scale;
+
+                    ctx.beginPath();
+                    ctx.arc(kx, ky, joystick.innerRadius * scale, 0, Math.PI * 2);
+                    ctx.fillStyle = '#FACC15';
+                    ctx.fill();
+                }
+            }
+
+            function drawRhythmGame() {
+                // 判定ゾーン
+                ctx.fillStyle = hitZoneColor;
+                ctx.fillRect(0, rhythmHitZoneY, canvas.width, hitZoneHeight);
+                ctx.strokeStyle = '#FACC15';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(0, rhythmHitZoneY, canvas.width, hitZoneHeight);
+
+                // レーン区切り線
+                ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(canvas.width / 3, 0); ctx.lineTo(canvas.width / 3, canvas.height);
+                ctx.moveTo(canvas.width * 2 / 3, 0); ctx.lineTo(canvas.width * 2 / 3, canvas.height);
+                ctx.stroke();
+
+                // 降りてくるバナナノーツ
+                rhythmNotes.forEach(note => {
+                    if (!note.hit) {
+                        ctx.fillStyle = '#FACC15';
+                        ctx.beginPath();
+                        ctx.arc(note.x, note.y, note.size / 2, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.strokeStyle = '#854D0E';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                    }
+                });
+            }
+
+            function update() {
+                if (hitGradeTimer > 0) {
+                    hitGradeTimer--;
+                    if (hitGradeTimer === 0) {
+                        hitGradeDisplay.style.opacity = '0';
+                    }
+                }
 
                 if (gameState === 'playing') {
                     frameCount++;
-                    movePlayer(); 
+                    movePlayer();
                     createInitialBullet();
                     createGuardBulletPattern();
                     createVisitorBulletPattern();
                     moveBullets();
 
                     if (checkCollision()) {
-                        gameFlashTimer = 15; 
-                        gameState = 'gameOver';
-                        endTime = performance.now();
+                        endGame(false, '警備員の弾幕に当たってしまった！');
                     }
+
                     if (checkBananaProximity()) {
                         gameState = 'rhythmIntro';
+                        rhythmIntroContainer.classList.remove('hidden');
                     }
-                } else if (gameState === 'rhythmGame') {
-                    // ノートの継続生成ロジックは削除されています
-
+                } else if (gameState === 'rhythmPlaying') {
                     moveRhythmNotes();
-                    drawRhythmGame();
-
-                    if (hitGradeTimer > 0) {
-                        hitGradeTimer--;
-                        hitGradeDisplay.textContent = lastHitGrade;
-                        hitGradeDisplay.style.opacity = 1;
-                        if (lastHitGrade === 'PERFECT!') {
-                            hitGradeDisplay.style.color = '#10B981'; 
-                            hitGradeDisplay.style.fontSize = '3.5rem';
-                        } else if (lastHitGrade === 'GOOD!') {
-                            hitGradeDisplay.style.color = '#FDE047'; 
-                            hitGradeDisplay.style.fontSize = '3rem';
-                        } else {
-                            hitGradeDisplay.style.color = '#EF4444'; 
-                            hitGradeDisplay.style.fontSize = '3rem';
-                        }
-                    } else {
-                        hitGradeDisplay.style.opacity = 0;
-                    }
                 }
+            }
 
-                if (gameState === 'playing') {
-                    drawPlayer();
-                    drawGuards();
-                    drawVisitors();
+            function render() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if (gameState === 'playing' || gameState === 'rhythmIntro') {
                     drawBanana();
+                    drawVisitors();
+                    drawGuards();
+                    drawPlayer();
                     drawBullets();
-                    // drawJoystickはモバイル環境でのみ実行
+                    drawJoystick();
+                } else if (gameState === 'rhythmPlaying') {
+                    drawRhythmGame();
                 }
-                
-                // ジョイスティックは、ゲームが'playing'中に限り描画されます。
-                drawJoystick(); 
+            }
 
-                if (gameFlashTimer > 0) {
-                    ctx.fillStyle = 'rgba(255, 0, 0, 0.4)';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    gameFlashTimer--;
-                }
-
-
-                updateUI();
-
+            function gameLoop() {
+                update();
+                render();
                 animationFrameId = requestAnimationFrame(gameLoop);
             }
 
-            // UI要素の更新 (省略なし)
-            function updateUI() {
-                gameUI.classList.add('hidden');
+            function endGame(isSuccess, message) {
+                gameState = isSuccess ? 'cleared' : 'gameOver';
+                endTime = performance.now();
+                const clearTime = ((endTime - startTime) / 1000).toFixed(1);
+
+                overlayTitle.innerText = isSuccess ? 'ミッション成功！' : 'ゲームオーバー';
+                overlaySubtitle.innerText = message + (isSuccess ? `\nクリアタイム: ${clearTime}秒` : '');
+                gameMessageOverlay.classList.remove('hidden');
+
                 eatBananaContainer.classList.add('hidden');
-                retryButton.classList.add('hidden');
                 rhythmIntroContainer.classList.add('hidden');
-                rhythmLifeDisplay.classList.add('hidden');
-                gameMessageOverlay.classList.add('hidden'); 
-
-                const currentDifficulty = difficultySelect.value;
-                let baseMessage = '';
-                const duration = endTime ? ((endTime - startTime) / 1000).toFixed(2) : 0;
-
-                switch(gameState) {
-                    case 'title':
-                        if (gameBGM) { gameBGM.pause(); gameBGM.currentTime = 0; }
-                        gameIntro.classList.remove('hidden');
-                        break;
-                    case 'playing':
-                        gameIntro.classList.add('hidden');
-                        gameUI.classList.remove('hidden');
-                        break;
-                    case 'rhythmIntro':
-                        gameBGM.pause();
-                        gameIntro.classList.add('hidden');
-                        rhythmIntroContainer.classList.remove('hidden');
-                        cancelAnimationFrame(animationFrameId);
-                        break;
-                    case 'rhythmGame':
-                        gameIntro.classList.add('hidden');
-                        gameUI.classList.remove('hidden');
-                        eatBananaContainer.classList.remove('hidden');
-                        eatCountDisplay.textContent = `食べたバナナ... ${rhythmScore}/${eatMax}`;
-
-                        if (currentDifficulty === 'easy') {
-                            rhythmLifeDisplay.textContent = `残りミス回数: ${rhythmMaxMisses - rhythmGameMisses}`;
-                            rhythmLifeDisplay.classList.remove('hidden');
-                        }
-                        break;
-
-                    case 'win': 
-                        gameBGM.pause();
-                        gameBGM.currentTime = 0;
-                        gameMessageOverlay.innerHTML = `**大成功！バナナを盗み食った！**<br>潜入時間: ${duration}秒`;
-                        gameUI.classList.remove('hidden');
-                        retryButton.classList.remove('hidden');
-                        gameMessageOverlay.classList.remove('hidden'); 
-                        cancelAnimationFrame(animationFrameId);
-                        break;
-
-                    case 'gameOver': 
-                        gameBGM.pause();
-                        gameBGM.currentTime = 0;
-
-                        if (rhythmScore >= 5) {
-                            baseMessage = '逮捕されたけどバナナの実は食べた！';
-                        } else if (rhythmScore > 0) {
-                            baseMessage = '逮捕されたけど皮だけ食べた！';
-                        } else {
-                            baseMessage = '逮捕された！ゲームオーバー';
-                        }
-
-                        gameMessageOverlay.innerHTML = `${baseMessage}<br>潜入時間: ${duration}秒`;
-                        gameUI.classList.remove('hidden');
-                        retryButton.classList.remove('hidden');
-                        gameMessageOverlay.classList.remove('hidden'); 
-                        cancelAnimationFrame(animationFrameId);
-                        break;
-                }
+                retryButton.classList.remove('hidden');
             }
 
-            // --- キーボードイベントリスナー ---
-            document.addEventListener('keydown', (e) => { 
-                const key = e.key.toLowerCase();
-                if (key.startsWith('arrow') || ['w', 'a', 's', 'd'].includes(key)) {
-                    keys[key] = true;
-                }
-                // リズムゲームのキー操作
-                if (gameState === 'rhythmGame') {
-                    if (key === 'arrowleft') handleRhythmTap('left');
-                    if (key === 'arrowdown') handleRhythmTap('center');
-                    if (key === 'arrowright') handleRhythmTap('right');
-                }
-            });
-            document.addEventListener('keyup', (e) => { 
-                const key = e.key.toLowerCase();
-                if (key.startsWith('arrow') || ['w', 'a', 's', 'd'].includes(key)) {
-                    keys[key] = false;
-                }
-            });
-
-            // --- ジョイスティックイベントリスナー (タッチ座標は画面全体座標系) ---
-            joystickContainer.addEventListener('touchstart', (e) => {
-                // PC環境でのタッチイベントを無視するチェックを削除 (iPadで必須)
-                if (gameState !== 'playing') return;
-                e.preventDefault();
-                const touch = e.touches[0];
-
-                const containerRect = joystickContainer.getBoundingClientRect();
-
-                joystick.active = true;
-
-                // X座標補正: -20px
-                joystick.joystickCenterScreenX = containerRect.left + containerRect.width / 2 + JOYSTICK_INPUT_CORRECTION_X;
-                // Y座標補正: 20px
-                joystick.joystickCenterScreenY = containerRect.top + containerRect.height / 2 + JOYSTICK_INPUT_CORRECTION_Y;
-
-                // 初回のタッチ位置が中心からどれだけ離れているかに応じてdeltaX/Yを設定
-                let diffX = touch.clientX - joystick.joystickCenterScreenX;
-                let diffY = touch.clientY - joystick.joystickCenterScreenY;
-
-                const distance = Math.sqrt(diffX * diffX + diffY * diffY);
-
-                // 初回のタッチ位置が範囲外であれば、範囲内に制限する
-                if (distance > joystick.radius) {
-                    const angle = Math.atan2(diffY, diffX);
-                    diffX = Math.cos(angle) * joystick.radius;
-                    diffY = Math.sin(angle) * joystick.radius;
-                }
-
-                // 描画と移動に使用する変位を更新
-                joystick.deltaX = diffX;
-                joystick.deltaY = diffY;
-
-            }, { passive: false });
-
-            joystickContainer.addEventListener('touchmove', (e) => {
-                // PC環境でのタッチイベントを無視するチェックを削除 (iPadで必須)
-                if (!joystick.active || gameState !== 'playing') return;
-                e.preventDefault();
-                const touch = e.touches[0];
-
-                // タッチ位置と記録した中心座標 (補正済み) との差分を計算
-                let diffX = touch.clientX - joystick.joystickCenterScreenX;
-                let diffY = touch.clientY - joystick.joystickCenterScreenY;
-                const distance = Math.sqrt(diffX * diffX + diffY * diffY);
-
-                // ジョイスティックの可動範囲を制限 (円形)
-                if (distance > joystick.radius) {
-                    const angle = Math.atan2(diffY, diffX);
-                    diffX = Math.cos(angle) * joystick.radius;
-                    diffY = Math.sin(angle) * joystick.radius;
-                }
-
-                // 描画と移動に使用する変位を更新
-                joystick.deltaX = diffX;
-                joystick.deltaY = diffY;
-
-            }, { passive: false });
-
-            joystickContainer.addEventListener('touchend', () => {
-                joystick.active = false;
-                // タッチ終了時に変位をリセット
-                joystick.deltaX = 0; 
-                joystick.deltaY = 0;
-            });
-            // ------------------------------------
-
-            function tryPlayBGM() {
-                if (bgmReady) {
-                    gameBGM.currentTime = 0; 
-                    gameBGM.play().catch(error => {
-                        console.error("BGM再生失敗:", error);
-                    });
-                } else {
-                     // canplaythroughリスナーで再生を試みる（安全な方法）
-                     gameBGM.addEventListener('canplaythrough', function attemptPlayOnce() {
-                        gameBGM.removeEventListener('canplaythrough', attemptPlayOnce);
-                        gameBGM.currentTime = 0;
-                        gameBGM.play().catch(e => console.error("ロード後の再生試行に失敗:", e));
-                     });
-                     // ロードがまだ完了していない場合に備えて、ロードを再試行
-                     gameBGM.load(); 
-                }
-            }
-
+            // イベントバインド
             startButton.addEventListener('click', () => {
-                tryPlayBGM(); 
-                gameState = 'playing';
+                try { gameBGM.play(); } catch(e){}
+                gameIntro.classList.add('hidden');
+                gameUI.classList.remove('hidden');
                 initGame();
+                gameState = 'playing';
                 gameLoop();
             });
 
             rhythmStartButton.addEventListener('click', () => {
-                gameState = 'rhythmGame';
-                initRhythmGame(); 
-                tryPlayBGM(); 
-                gameLoop();
+                rhythmIntroContainer.classList.add('hidden');
+                eatBananaContainer.classList.remove('hidden');
+                rhythmLifeDisplay.innerText = `ミス: 0/${rhythmMaxMisses}`;
+                eatCountDisplay.innerText = `食べたバナナ... 0/${eatMax}`;
+                generateRhythmNotes();
+                gameState = 'rhythmPlaying';
             });
+
+            laneButtonLeft.addEventListener('click', () => handleRhythmInput('left'));
+            laneButtonCenter.addEventListener('click', () => handleRhythmInput('center'));
+            laneButtonRight.addEventListener('click', () => handleRhythmInput('right'));
 
             retryButton.addEventListener('click', () => {
-                gameState = 'playing';
+                gameMessageOverlay.classList.add('hidden');
+                retryButton.classList.add('hidden');
+                cancelAnimationFrame(animationFrameId);
                 initGame();
-                tryPlayBGM(); 
+                gameState = 'playing';
                 gameLoop();
             });
-
-            // リズムボタンのイベントリスナー (タッチ/クリック対応)
-            laneButtonLeft.addEventListener('click', () => {
-                handleRhythmTap('left');
-            });
-            laneButtonCenter.addEventListener('click', () => {
-                handleRhythmTap('center');
-            });
-            laneButtonRight.addEventListener('click', () => {
-                handleRhythmTap('right');
-            });
-
-            // BGMの初期設定
-            gameBGM = new Audio(BGM_URL);
-            gameBGM.loop = true; 
-            gameBGM.volume = 0.2; 
-            // 初回ロードを試みる
-            gameBGM.load(); 
-
-            gameBGM.addEventListener('canplaythrough', () => {
-                bgmReady = true;
-                console.log("BGM: ロード完了。再生準備OK。");
-            });
-
-            gameBGM.addEventListener('error', (e) => {
-                // ロードエラーが発生した場合
-                console.error("BGMロードエラー:", e);
-                bgmReady = false; 
-            });
-
-            // 初期化
-            initGame();
-            updateUI();
         };
     </script>
 </body>
